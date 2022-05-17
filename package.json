@@ -1,0 +1,38 @@
+{
+  "name": "tiny-sqlite3",
+  "repository": "github:fabiospampinato/tiny-sqlite3",
+  "description": "A tiny cross-platform client for SQLite3, with the official precompiled binaries as the only third-party dependencies",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "benchmark": "tsex benchmark",
+    "benchmark:watch": "tsex benchmark --watch",
+    "clean": "tsex clean",
+    "compile": "tsex compile",
+    "compile:watch": "tsex compile --watch",
+    "test": "fava",
+    "test:watch": "fava --watch",
+    "update": "bash tasks/update.sh",
+    "prepublishOnly": "npm run clean && npm run compile && npm run test"
+  },
+  "keywords": [
+    "sqlite3",
+    "native",
+    "cross-platform",
+    "tiny"
+  ],
+  "dependencies": {
+    "when-exit": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.34",
+    "better-sqlite3": "^7.5.3",
+    "fava": "0.0.6",
+    "sqlite-tag-spawned": "^0.6.0",
+    "tsex": "^1.1.2",
+    "typescript": "^4.6.4"
+  }
+}
