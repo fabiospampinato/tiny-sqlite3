@@ -58,7 +58,7 @@ class Database {
     this.readonly = !!options.readonly;
     this.transacting = false;
 
-    this.executor = new Executor ( bin, args, options );
+    this.executor = new Executor ( bin, args, options, this.close );
 
     whenExit ( this.close );
 

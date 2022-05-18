@@ -24,9 +24,10 @@ class Executor {
 
   /* CONSTRUCTOR */
 
-  constructor ( bin: string, args: string[], options: Options ) {
+  constructor ( bin: string, args: string[], options: Options, onClose: () => void ) {
 
-    const {stderr, stdin, stdout} = Spawner.spawn ( bin, args );
+    const process = Spawner.spawn ( bin, args );
+    const {stderr, stdin, stdout} = process;
 
     stdin.setDefaultEncoding ( 'utf8' );
     stderr.setEncoding ( 'utf8' );
@@ -39,6 +40,8 @@ class Executor {
     this.stderr = stderr;
     this.stdin = stdin;
     this.stdout = stdout;
+
+    process.on ( 'close', onClose );
 
     this.exec ( '.mode json' );
 

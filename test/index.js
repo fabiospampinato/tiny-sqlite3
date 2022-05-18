@@ -1,8 +1,9 @@
 
 /* IMPORT */
 
-import fs from 'node:fs';
 import {describe} from 'fava';
+import fs from 'node:fs';
+import {setTimeout as delay} from 'node:timers/promises';
 import Database from '../dist/index.js';
 
 /* MAIN */
@@ -335,7 +336,23 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
-  it.todo ( 'supports arbitrary binary arguments' );
+  it ( 'supports arbitrary binary arguments', async t => {
+
+    const db = new Database ( ':memory:', { args: ['-bail'] } );
+
+    try {
+
+      await db.sql`SELECT * FROM missing`;
+
+    } catch {
+
+      await delay ( 100 );
+
+      t.false ( db.open );
+
+    }
+
+  });
 
   it ( 'supports empty transactions', async t => {
 
@@ -518,6 +535,25 @@ describe ( 'tiny-sqlite3', it => {
     db.close ();
 
     t.false ( fs.existsSync ( db.name ) );
+
+  });
+
+  it ( 'unlinks the in-memory database after sqlite3 exits', async t => {
+
+    const db = new Database ( ':memory:', { args: ['-bail'] } );
+
+    try {
+
+      await db.sql`SELECT * FROM missing`;
+
+    } catch {
+
+      await delay ( 100 );
+
+      t.false ( db.open );
+      t.false ( fs.existsSync ( db.name ) );
+
+    }
 
   });
 
