@@ -30,6 +30,10 @@ class Executor {
 
     const {stderr, stdin, stdout} = spawn ( bin, args );
 
+    stdin.setDefaultEncoding ( 'utf8' );
+    stderr.setEncoding ( 'utf8' );
+    stdout.setEncoding ( 'utf8' );
+
     this.id = randomUUID ();
     this.idResult = `[{"_":"${this.id}"}]\n`;
     this.idSelect = `SELECT '${this.id}' AS _;\n`;
