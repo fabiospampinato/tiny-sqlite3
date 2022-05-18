@@ -6,8 +6,6 @@ import Database from '../dist/index.js';
 
 /* MAIN */
 
-//DB: https://github.com/jpwhite3/northwind-SQLite3/blob/master/Northwind_large.sqlite.zip
-
 {
   const northwidth = createRequire ( import.meta.url )( 'better-sqlite3' )( './tasks/northwind.sqlite' );
   const test = createRequire ( import.meta.url )( 'better-sqlite3' )( ':memory:' );

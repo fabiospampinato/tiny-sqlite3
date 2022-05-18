@@ -13,6 +13,7 @@
     "clean": "tsex clean",
     "compile": "tsex compile",
     "compile:watch": "tsex compile --watch",
+    "northwind": "bash tasks/northwind.sh",
     "test": "fava",
     "test:watch": "fava --watch",
     "update": "bash tasks/update.sh",
