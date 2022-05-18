@@ -51,7 +51,7 @@ const rows2 = await db.sql`SELECT * FROM ${db.raw ( 'example' )} LIMIT ${limit}`
 
 await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
 
-const success = db.transaction ( () => {
+const success = await db.transaction ( () => {
   await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
   await db.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
   await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`; // This will cause the transaction to be rolled back
