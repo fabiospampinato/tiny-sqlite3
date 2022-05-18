@@ -79,6 +79,7 @@ const escape = ( value: unknown ): string | number => {
 const getDatabasePlatformBin = (() => {
 
   //TODO: Support bundling
+  //TODO: The arm64 build for Windows is not actually for arm64
 
   let cached: string | undefined;
 
@@ -88,8 +89,10 @@ const getDatabasePlatformBin = (() => {
 
     const dirname = new URL ( '.', import.meta.url ).pathname;
     const platform = os.platform ();
+    const arch = ( os.arch () === 'arm64' ) ? 'arm64' : 'x86';
     const ext = ( platform === 'win32' ) ? '.exe' : '';
-    const bin = path.join ( dirname, '..', 'resources', 'binaries', platform, `sqlite3${ext}` );
+    const binary = `sqlite3-${platform}-${arch}${ext}`;
+    const bin = path.join ( dirname, '..', 'resources', 'binaries', binary );
 
     fs.chmodSync ( bin, 0o755 ); // Ensuring the binary is actually executable
 
