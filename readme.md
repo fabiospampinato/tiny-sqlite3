@@ -66,7 +66,7 @@ db.close ();
 
 ## Thanks
 
-- [`sqlite-tag-spawned`](https://github.com/WebReflection/sqlite-tag-spawned): for providing a sort of reference implementation, this project is very much derivative work of that.
+- [`sqlite-tag-spawned`](https://github.com/WebReflection/sqlite-tag-spawned): for providing a sort of reference implementation, `tiny-sqlite3` is very much derivative work of `sqlite-tag-spawned`.
 - [`@WebReflection`](https://github.com/WebReflection): for also providing the idea of directly spawning the official prebuild binaries.
 
 ## License
