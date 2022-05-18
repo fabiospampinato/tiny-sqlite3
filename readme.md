@@ -71,4 +71,5 @@ db.close ();
 
 ## License
 
-MIT © Fabio Spampinato
+- Parts: ISC © Andrea Giammarchi
+- Parts: MIT © Fabio Spampinato
