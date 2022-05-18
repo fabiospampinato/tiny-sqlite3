@@ -1,16 +1,14 @@
 
 /* IMPORT */
 
-import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
+import Spawner from '~/objects/spawner';
 import {makeNakedPromise} from '~/utils';
 import type {Options} from '~/types';
 
 /* MAIN */
-
-//TODO: Retry a bunch of times to open a database (SqliteError: SQLITE_ERROR: Error: unable to open database "/var/folders/lp/1v46h3cj5qv32n0s83c2624w0000gn/T/ac7b82d4-e2ec-450e-809e-7a4d8d01f1fa": unable to open database file)
 
 class Executor {
 
@@ -28,7 +26,7 @@ class Executor {
 
   constructor ( bin: string, args: string[], options: Options ) {
 
-    const {stderr, stdin, stdout} = spawn ( bin, args );
+    const {stderr, stdin, stdout} = Spawner.spawn ( bin, args );
 
     stdin.setDefaultEncoding ( 'utf8' );
     stderr.setEncoding ( 'utf8' );

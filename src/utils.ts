@@ -28,6 +28,26 @@ const builder = ( statics: TemplateStringsArray, dynamics: unknown[] ): string =
 
 };
 
+const ensureFileSync = ( filePath: string ): void => {
+
+  if ( fs.existsSync ( filePath ) ) return;
+
+  try {
+
+    const folderPath = path.dirname ( filePath );
+
+    fs.mkdirSync ( folderPath );
+
+  } catch {}
+
+  try {
+
+    fs.writeFileSync ( filePath, '' );
+
+  } catch {}
+
+};
+
 const escape = ( value: unknown ): string | number => {
 
   if ( typeof value === 'string' ) {
@@ -166,4 +186,4 @@ const makeNakedPromise = <T = unknown> () => {
 
 /* EXPORT */
 
-export {builder, escape, getDatabaseBin, getDatabasePath, getTempPath, makeNakedPromise};
+export {builder, ensureFileSync, escape, getDatabaseBin, getDatabasePath, getTempPath, makeNakedPromise};
