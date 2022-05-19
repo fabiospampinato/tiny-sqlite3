@@ -113,7 +113,7 @@ class Database {
     const buffer = await fs.promises.readFile ( temp );
     const uint8 = new Uint8Array ( buffer, buffer.byteOffset, buffer.byteLength );
 
-    fs.unlinkSync ( temp );
+    await fs.promises.unlink ( temp );
 
     return uint8;
 
