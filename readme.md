@@ -1,6 +1,8 @@
 # Tiny SQLite3
 
-A tiny cross-platform client for SQLite3, with the official precompiled binaries as the only third-party dependencies.
+A tiny cross-platform client for SQLite3, with precompiled binaries as the only third-party dependencies.
+
+A nice feature about this module is that queries are processed in another process by SQLite3, and Node's hyper-slow streams are bypassed, so actually the main thread stays idle and able to perform work almost for the entire time, while `better-sqlite3` blocks.
 
 ## Install
 
@@ -82,6 +84,25 @@ await db.transaction ( async () => {
 
 db.close ();
 ```
+
+## Benchmark
+
+Executing the benchmark provided in this repo generates the following flamecharts for different SQLite3 clients.
+
+Basically `better-sqlite3` returns results faster, but it blocks for longer. Depending on your use case you may prefer one or the other.
+
+### `better-sqlite3`
+
+![](resources/screenshots/better-sqlite3.png)
+
+### `sqlite-tag-spawned`
+
+![](resources/screenshots/sqlite-tag-spawned.png)
+
+### `tiny-sqlite3`
+
+![](resources/screenshots/tiny-sqlite3.png)
+
 
 ## Thanks
 

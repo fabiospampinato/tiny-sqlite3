@@ -1,7 +1,7 @@
 {
   "name": "tiny-sqlite3",
   "repository": "github:fabiospampinato/tiny-sqlite3",
-  "description": "A tiny cross-platform client for SQLite3, with the official precompiled binaries as the only third-party dependencies",
+  "description": "A tiny cross-platform client for SQLite3, with precompiled binaries as the only third-party dependencies",
   "version": "1.1.0",
   "type": "module",
   "main": "dist/index.js",
