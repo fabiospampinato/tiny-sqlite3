@@ -22,6 +22,7 @@ import Database from '../dist/index.js';
     for ( let i = 0; i < 1000; i++ ) {
       await test.prepare ( `INSERT INTO lorem VALUES ('${'Ipsum ' + i}')` ).run ();
     }
+
     await test.prepare ( `SELECT COUNT(info) AS rows FROM lorem` ).get ();
     await test.prepare ( `SELECT * FROM lorem WHERE info IN ('${'Ipsum 2'}','${'Ipsum 3'}')` ).all ();
     await test.prepare ( `SELECT * FROM lorem` ).all ();
@@ -48,9 +49,12 @@ import Database from '../dist/index.js';
     await northwidth.all`SELECT * FROM "OrderDetail" LIMIT 10000`;
 
     await test.query`CREATE TABLE lorem (info TEXT)`;
+    const transaction = test.transaction ();
     for ( let i = 0; i < 1000; i++ ) {
-      await test.query`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
+      transaction`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
     }
+    await transaction.commit ();
+
     await test.get`SELECT COUNT(info) AS rows FROM lorem`;
     await test.all`SELECT * FROM lorem WHERE info IN (${'Ipsum 2'},${'Ipsum 3'})`;
     await test.all`SELECT * FROM lorem`;
@@ -77,9 +81,12 @@ import Database from '../dist/index.js';
     await northwidth.sql`SELECT * FROM "OrderDetail" LIMIT 10000`;
 
     await test.sql`CREATE TABLE lorem (info TEXT)`;
-    for ( let i = 0; i < 1000; i++ ) {
-      await test.sql`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
-    }
+    await test.transaction ( async () => {
+      for ( let i = 0; i < 1000; i++ ) {
+        await test.sql`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
+      }
+    });
+
     await test.sql`SELECT COUNT(info) AS rows FROM lorem`;
     await test.sql`SELECT * FROM lorem WHERE info IN (${'Ipsum 2'},${'Ipsum 3'})`;
     await test.sql`SELECT * FROM lorem`;
