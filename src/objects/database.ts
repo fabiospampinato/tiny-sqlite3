@@ -72,7 +72,7 @@ class Database {
 
   backup = async ( file: string ): Promise<void> => {
 
-    await this.executor.exec ( `.backup '${file}'` );
+    await this.executor.exec ( `.backup '${file}'`, true );
 
   };
 
@@ -89,7 +89,7 @@ class Database {
 
       const query = this.batched.join ( ';' );
 
-      await this.executor.exec ( query );
+      await this.executor.exec ( query, true );
 
     } finally {
 
@@ -173,17 +173,17 @@ class Database {
 
       this.transacting = true;
 
-      await this.executor.exec ( 'BEGIN TRANSACTION' );
+      await this.executor.exec ( 'BEGIN TRANSACTION', true );
 
       await fn ();
 
-      await this.executor.exec ( 'COMMIT' );
+      await this.executor.exec ( 'COMMIT', true );
 
       return true;
 
     } catch {
 
-      await this.executor.exec ( 'ROLLBACK TRANSACTION' );
+      await this.executor.exec ( 'ROLLBACK TRANSACTION', true );
 
       return false;
 

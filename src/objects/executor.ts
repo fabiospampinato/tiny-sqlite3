@@ -39,11 +39,11 @@ class Executor {
 
     process.on ( 'close', onClose );
 
-    this.exec ( '.mode json' );
+    this.exec ( '.mode json', true );
 
     if ( options.wal ) {
 
-      this.exec ( 'PRAGMA journal_mode=WAL' );
+      this.exec ( 'PRAGMA journal_mode=WAL', true );
 
     }
 
@@ -53,13 +53,13 @@ class Executor {
 
   close (): void {
 
-    this.exec ( '.quit' );
+    this.exec ( '.quit', true );
 
     this.lock = UNRESOLVABLE;
 
   }
 
-  exec <T = unknown> ( query: string ): Promise<T> {
+  exec <T = unknown> ( query: string, noOutput: boolean = false ): Promise<T> {
 
     const {promise, resolve, reject} = makeNakedPromise<T> ();
 
@@ -72,11 +72,19 @@ class Executor {
           this.stdout.off ( 'data', onData );
           this.stderr.off ( 'data', onError );
 
-          const output = await fs.promises.readFile ( this.outputPath, 'utf8' );
+          if ( noOutput ) {
 
-          const result = output ? JSON.parse ( output ) : [];
+            resolve ( [] as any ); //TSC
 
-          resolve ( result );
+          } else {
+
+            const output = await fs.promises.readFile ( this.outputPath, 'utf8' );
+
+            const result = output ? JSON.parse ( output ) : [];
+
+            resolve ( result );
+
+          }
 
           done ();
 
