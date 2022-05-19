@@ -2,18 +2,18 @@
 /* IMPORT */
 
 import {spawn} from 'node:child_process';
-import type {ChildProcessWithoutNullStreams} from 'node:child_process';
 import {ensureFileSync} from '~/utils';
+import type {Process} from '~/types';
 
 /* MAIN */
 
 //TODO: Make this even more reliable, really trying hard to write the file on disk, though consider multi-process scenarios too
 
-class Spawner {
+const Spawner = {
 
-  /* STATIC API */
+  /* API */
 
-  static spawn ( bin: string, args: string[] ): ChildProcessWithoutNullStreams {
+  spawn: ( bin: string, args: string[] ): Process => {
 
     ensureFileSync ( args[0] );
 
@@ -21,7 +21,7 @@ class Spawner {
 
   }
 
-}
+};
 
 /* EXPORT */
 

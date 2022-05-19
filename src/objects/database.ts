@@ -1,6 +1,7 @@
 
 /* IMPORT */
 
+import {isUint8Array, isUint8ClampedArray} from 'is';
 import fs from 'node:fs';
 import whenExit from 'when-exit';
 import {MEMORY_DATABASE, UNRESOLVABLE} from '~/constants';
@@ -13,6 +14,8 @@ import type {Options} from '~/types';
 /* MAIN */
 
 //TODO: Support WASM and make this interface isomorphic
+//TODO: Support bundling
+//TODO: The arm64 build for Windows is not actually for arm64
 
 class Database {
 
@@ -25,12 +28,12 @@ class Database {
   public batching: boolean;
   public transacting: boolean;
 
-  private executor: Executor;
   private batched: string[];
+  private executor: Executor;
 
   /* CONSTRUCTOR */
 
-  constructor ( db: Database | Uint8Array | string, options: Options = {} ) {
+  constructor ( db: Database | Uint8Array | Uint8ClampedArray | string, options: Options = {} ) {
 
     const bin = getDatabaseBin ( options.bin );
     const path = getDatabasePath ( db );
@@ -55,14 +58,14 @@ class Database {
     }
 
     this.name = path;
-    this.memory = ( db === MEMORY_DATABASE || db instanceof Uint8Array );
+    this.memory = ( db === MEMORY_DATABASE || isUint8Array ( db ) || isUint8ClampedArray ( db ) );
     this.open = true;
     this.readonly = !!options.readonly;
     this.batching = false;
     this.transacting = false;
 
-    this.executor = new Executor ( bin, args, options, this.close );
     this.batched = [];
+    this.executor = new Executor ( bin, args, options, this.close );
 
     whenExit ( this.close );
 
@@ -70,9 +73,9 @@ class Database {
 
   /* API */
 
-  backup = async ( file: string ): Promise<void> => {
+  backup = async ( filePath: string ): Promise<void> => {
 
-    await this.executor.exec ( `.backup '${file}'`, true );
+    await this.executor.exec ( `.backup '${filePath}'`, true );
 
   };
 

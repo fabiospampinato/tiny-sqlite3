@@ -2,11 +2,12 @@
 /* IMPORT */
 
 import fs from 'node:fs';
+import makePromiseNaked from 'promise-make-naked';
 import {UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Spawner from '~/objects/spawner';
-import {getTempPath, makeNakedPromise} from '~/utils';
-import type {Options} from '~/types';
+import {getTempPath} from '~/utils';
+import type {Callback, Options, Process} from '~/types';
 
 /* MAIN */
 
@@ -15,29 +16,22 @@ class Executor {
   /* VARIABLES */
 
   private lock: Promise<void>;
-  private outputPath: string;
-  private stderr: NodeJS.ReadableStream;
-  private stdin: NodeJS.WritableStream;
-  private stdout: NodeJS.ReadableStream;;
+  private outputPath: string; //TODO: replace this with an in-memory stream, somehow
+  private process: Process;
 
   /* CONSTRUCTOR */
 
-  constructor ( bin: string, args: string[], options: Options, onClose: () => void ) {
-
-    const process = Spawner.spawn ( bin, args );
-    const {stderr, stdin, stdout} = process;
-
-    stdin.setDefaultEncoding ( 'utf8' );
-    stderr.setEncoding ( 'utf8' );
-    stdout.setEncoding ( 'utf8' );
+  constructor ( bin: string, args: string[], options: Options, onClose: Callback ) {
 
     this.lock = Promise.resolve ();
     this.outputPath = getTempPath ();
-    this.stderr = stderr;
-    this.stdin = stdin;
-    this.stdout = stdout;
+    this.process = Spawner.spawn ( bin, args );
 
-    process.on ( 'close', onClose );
+    this.process.stdin.setDefaultEncoding ( 'utf8' );
+    this.process.stderr.setEncoding ( 'utf8' );
+    this.process.stdout.setEncoding ( 'utf8' );
+
+    this.process.on ( 'close', onClose );
 
     this.exec ( '.mode json', true );
 
@@ -59,26 +53,34 @@ class Executor {
 
   }
 
-  exec <T = unknown> ( query: string, noOutput: boolean = false ): Promise<T> {
+  exec <T = unknown> ( query: string, noOutput: true ): Promise<[]>;
+  exec <T = unknown> ( query: string, noOutput?: false ): Promise<T>;
+  exec <T = unknown> ( query: string, noOutput: boolean = false ): Promise<T | []> {
 
-    const {promise, resolve, reject} = makeNakedPromise<T> ();
+    const {promise, resolve, reject} = makePromiseNaked<T | []> ();
 
     this.lock = this.lock.then ( () => {
 
       return new Promise ( done => {
 
+        const onClose = (): void => {
+
+          this.process.stdout.off ( 'data', onData );
+          this.process.stderr.off ( 'data', onError );
+
+        };
+
         const onData = async (): Promise<void> => {
 
-          this.stdout.off ( 'data', onData );
-          this.stderr.off ( 'data', onError );
+          onClose ();
 
-          if ( noOutput ) {
+          if ( noOutput ) { // Avoiding reading the output file
 
-            resolve ( [] as any ); //TSC
+            resolve ( [] );
 
-          } else {
+          } else { // Reading the output file
 
-            const output = await fs.promises.readFile ( this.outputPath, 'utf8' );
+            const output = await fs.promises.readFile ( this.outputPath, 'utf8' ); //TODO: Move this to a worker thread
 
             const result = output ? JSON.parse ( output ) : [];
 
@@ -92,8 +94,7 @@ class Executor {
 
         const onError = ( data: string ): void => {
 
-          this.stdout.off ( 'data', onData );
-          this.stderr.off ( 'data', onError );
+          onClose ();
 
           const error = new Error ( data );
 
@@ -103,13 +104,13 @@ class Executor {
 
         };
 
-        this.stdout.on ( 'data', onData );
-        this.stderr.on ( 'data', onError );
+        this.process.stdout.on ( 'data', onData );
+        this.process.stderr.on ( 'data', onError );
 
-        this.stdin.write ( `.output '${this.outputPath}'\n` );
-        this.stdin.write ( `${query}\n;\n` );
-        this.stdin.write ( `.output\n` );
-        this.stdin.write ( `SELECT 1;\n` );
+        this.process.stdin.write ( `.output '${this.outputPath}'\n` );
+        this.process.stdin.write ( `${query}\n;\n` );
+        this.process.stdin.write ( `.output\n` );
+        this.process.stdin.write ( `SELECT 1;\n` );
 
       });
 

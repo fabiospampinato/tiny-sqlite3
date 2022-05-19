@@ -14,8 +14,8 @@
     "compile": "tsex compile",
     "compile:watch": "tsex compile --watch",
     "northwind": "bash tasks/northwind.sh",
-    "test": "fava",
-    "test:watch": "fava --watch",
+    "test": "tsex test",
+    "test:watch": "tsex test --watch",
     "update": "bash tasks/update.sh",
     "prepublishOnly": "npm run clean && npm run compile && npm run test"
   },
@@ -26,10 +26,14 @@
     "tiny"
   ],
   "dependencies": {
+    "is": "npm:@fabiospampinato/is@^2.0.0",
+    "once": "npm:@fabiospampinato/once@^2.0.0",
+    "promise-make-naked": "^2.0.0",
+    "stubborn-fs": "^1.0.0",
     "when-exit": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^17.0.34",
+    "@types/node": "^17.0.35",
     "better-sqlite3": "^7.5.3",
     "fava": "0.0.6",
     "sqlite-tag-spawned": "^0.6.0",

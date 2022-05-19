@@ -533,7 +533,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${123n} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "bigint" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "bigint" value' } );
 
     db.close ();
 
@@ -545,7 +545,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${{}} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "object" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "object" value' } );
 
     db.close ();
 
@@ -557,7 +557,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${Symbol ()} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "symbol" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "symbol" value' } );
 
     db.close ();
 
@@ -569,7 +569,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${[]} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "object" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "object" value' } );
 
     db.close ();
 
@@ -581,7 +581,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${Infinity} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "number" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "number" value' } );
 
     db.close ();
 
@@ -593,7 +593,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${NaN} )`;
-    }, { message: 'SQLITE_ERROR: incompatible "number" value' } );
+    }, { message: 'SQLITE_ERROR: unsupported "number" value' } );
 
     db.close ();
 

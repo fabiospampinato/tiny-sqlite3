@@ -1,6 +1,8 @@
 
 /* MAIN */
 
+type Callback = () => void;
+
 type Options = {
   bin?: string,
   args?: string[],
@@ -9,6 +11,8 @@ type Options = {
   wal?: boolean
 };
 
+type Process = import ( 'node:child_process' ).ChildProcessWithoutNullStreams;
+
 /* EXPORT */
 
-export type {Options};
+export type {Callback, Options, Process};
