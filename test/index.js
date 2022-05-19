@@ -266,7 +266,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return rodb.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
-    }, { message: 'SQLITE_ERROR: Runtime error near line 7: attempt to write a readonly database (8)\n' } );
+    }, { message: 'SQLITE_ERROR: Runtime error near line 12: attempt to write a readonly database (8)\n' } );
 
     db.close ();
     rodb.close ();

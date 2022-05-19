@@ -1,11 +1,11 @@
 
 /* IMPORT */
 
-import {randomUUID} from 'node:crypto';
+import fs from 'node:fs';
 import {UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Spawner from '~/objects/spawner';
-import {makeNakedPromise} from '~/utils';
+import {getTempPath, makeNakedPromise} from '~/utils';
 import type {Options} from '~/types';
 
 /* MAIN */
@@ -14,10 +14,8 @@ class Executor {
 
   /* VARIABLES */
 
-  private id: string;
-  private idResult: string;
-  private idSelect: string;
   private lock: Promise<void>;
+  private outputPath: string;
   private stderr: NodeJS.ReadableStream;
   private stdin: NodeJS.WritableStream;
   private stdout: NodeJS.ReadableStream;;
@@ -33,10 +31,8 @@ class Executor {
     stderr.setEncoding ( 'utf8' );
     stdout.setEncoding ( 'utf8' );
 
-    this.id = randomUUID ();
-    this.idResult = `[{"_":"${this.id}"}]\n`;
-    this.idSelect = `SELECT '${this.id}' AS _;\n`;
     this.lock = Promise.resolve ();
+    this.outputPath = getTempPath ();
     this.stderr = stderr;
     this.stdin = stdin;
     this.stdout = stdout;
@@ -71,40 +67,18 @@ class Executor {
 
       return new Promise ( done => {
 
-        let output: string = '';
+        const onData = async (): Promise<void> => {
 
-        const onData = ( data: string ): void => {
+          this.stdout.off ( 'data', onData );
+          this.stderr.off ( 'data', onError );
 
-          output += data;
+          const output = await fs.promises.readFile ( this.outputPath, 'utf8' );
 
-          let isEnd = false;
+          const result = output ? JSON.parse ( output ) : [];
 
-          while ( output.endsWith ( this.idResult ) ) {
+          resolve ( result );
 
-            isEnd = true;
-
-            output = output.slice ( 0, - this.idResult.length );
-
-          }
-
-          if ( isEnd ) {
-
-            this.stdout.off ( 'data', onData );
-            this.stderr.off ( 'data', onError );
-
-            while ( output.startsWith ( this.idResult ) ) {
-
-              output = output.slice ( this.idResult.length );
-
-            }
-
-            const result = output ? JSON.parse ( output ) : [];
-
-            resolve ( result );
-
-            done ();
-
-          }
+          done ();
 
         };
 
@@ -124,7 +98,10 @@ class Executor {
         this.stdout.on ( 'data', onData );
         this.stderr.on ( 'data', onError );
 
-        this.stdin.write ( `${query}\n;\n${this.idSelect}` );
+        this.stdin.write ( `.output '${this.outputPath}'\n` );
+        this.stdin.write ( `${query}\n;\n` );
+        this.stdin.write ( `.output\n` );
+        this.stdin.write ( `SELECT 1;\n` );
 
       });
 
