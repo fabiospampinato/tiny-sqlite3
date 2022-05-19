@@ -68,6 +68,16 @@ const success = await db.transaction ( () => {
 
 console.log ( success ); // => true|false
 
+// Transactions and batches can be combined together for greater performance
+
+await db.transaction ( async () => {
+  await db.batch ( () => {
+    db.sql`INSERT INTO example VALUES( ${201}, ${'title201'}, ${'description201'} )`;
+    db.sql`INSERT INTO example VALUES( ${202}, ${'title202'}, ${'description202'} )`;
+    db.sql`INSERT INTO example VALUES( ${203}, ${'title203'}, ${'description203'} )`;
+  });
+});
+
 // Close the connection to the database, from this point onwards no further queries can be executed
 
 db.close ();
