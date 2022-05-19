@@ -82,9 +82,11 @@ import Database from '../dist/index.js';
 
     await test.sql`CREATE TABLE lorem (info TEXT)`;
     await test.transaction ( async () => {
-      for ( let i = 0; i < 1000; i++ ) {
-        await test.sql`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
-      }
+      await test.batch ( async () => {
+        for ( let i = 0; i < 1000; i++ ) {
+          test.sql`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
+        }
+      })
     });
 
     await test.sql`SELECT COUNT(info) AS rows FROM lorem`;

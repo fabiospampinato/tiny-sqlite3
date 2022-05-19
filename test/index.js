@@ -354,6 +354,96 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'supports empty batches', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+
+    t.false ( db.batching );
+
+    const result = await db.batch ( () => {
+      t.true ( db.batching );
+    });
+
+    t.false ( db.batching );
+
+    const rows = await db.sql`SELECT * FROM example`;
+
+    t.is ( result, undefined );
+    t.deepEqual ( rows, [] );
+
+    db.close ();
+
+  });
+
+  it ( 'supports successful batches', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+
+    t.false ( db.batching );
+
+    const result = await db.batch ( () => {
+      t.true ( db.batching );
+      db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+      db.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
+      db.sql`INSERT INTO example VALUES( ${3}, ${'title3'}, ${'description3'} )`;
+      t.true ( db.batching );
+    });
+
+    t.false ( db.batching );
+
+    const rows = await db.sql`SELECT * FROM example`;
+
+    const expected = [
+      { id: 1, title: 'title1', description: 'description1' },
+      { id: 2, title: 'title2', description: 'description2' },
+      { id: 3, title: 'title3', description: 'description3' }
+    ];
+
+    t.is ( result, undefined );
+    t.deepEqual ( rows, expected );
+
+    db.close ();
+
+  });
+
+  it ( 'supports failing batches', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+
+    t.false ( db.batching );
+
+    await t.throwsAsync ( () => {
+      return db.batch ( () => {
+        t.true ( db.batching );
+        db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+        db.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
+        db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+        db.sql`INSERT INTO example VALUES( ${3}, ${'title3'}, ${'description3'} )`;
+        t.true ( db.batching );
+      });
+    }, { message: 'SQLITE_ERROR: Runtime error near line 12: UNIQUE constraint failed: example.id (19)\n' } );
+
+    t.false ( db.batching );
+
+    const rows = await db.sql`SELECT * FROM example`;
+
+    const expected = [
+      { id: 1, title: 'title1', description: 'description1' },
+      { id: 2, title: 'title2', description: 'description2' }
+    ];
+
+    t.deepEqual ( rows, expected );
+
+    db.close ();
+
+  });
+
   it ( 'supports empty transactions', async t => {
 
     const db = new Database ( ':memory:' );

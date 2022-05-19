@@ -3,7 +3,7 @@
 
 import fs from 'node:fs';
 import whenExit from 'when-exit';
-import {MEMORY_DATABASE} from '~/constants';
+import {MEMORY_DATABASE, UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Executor from '~/objects/executor';
 import Raw from '~/objects/raw';
@@ -22,9 +22,11 @@ class Database {
   public memory: boolean;
   public open: boolean;
   public readonly: boolean;
+  public batching: boolean;
   public transacting: boolean;
 
   private executor: Executor;
+  private batched: string[];
 
   /* CONSTRUCTOR */
 
@@ -56,9 +58,11 @@ class Database {
     this.memory = ( db === MEMORY_DATABASE || db instanceof Uint8Array );
     this.open = true;
     this.readonly = !!options.readonly;
+    this.batching = false;
     this.transacting = false;
 
     this.executor = new Executor ( bin, args, options, this.close );
+    this.batched = [];
 
     whenExit ( this.close );
 
@@ -69,6 +73,30 @@ class Database {
   backup = async ( file: string ): Promise<void> => {
 
     await this.executor.exec ( `.backup '${file}'` );
+
+  };
+
+  batch = async ( fn: () => void ): Promise<void> => {
+
+    if ( this.batching ) throw new Error ( 'nested batches are not supported' );
+
+    try {
+
+      this.batching = true;
+      this.batched = [];
+
+      await fn ();
+
+      const query = this.batched.join ( ';' );
+
+      await this.executor.exec ( query );
+
+    } finally {
+
+      this.batching = false;
+      this.batched = [];
+
+    }
 
   };
 
@@ -123,7 +151,17 @@ class Database {
 
     const query = builder ( strings, expressions );
 
-    return this.executor.exec<T> ( query );
+    if ( this.batching ) {
+
+      this.batched.push ( query );
+
+      return UNRESOLVABLE;
+
+    } else {
+
+      return this.executor.exec<T> ( query );
+
+    }
 
   };
 

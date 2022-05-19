@@ -27,6 +27,7 @@ db.name // => full path to the main file containing the data for the database
 db.memory // => whether it's in an in-memory database or not, in-memory databases are actually just stored in temporary files on disk
 db.open // => whether there's a connection to the database or not
 db.readonly // => whether the database is opened in read-only mode or not
+db.batching // => Whether queries are currently being executed in a batch or not
 db.transacting // => whether a transaction is currently being executed or not
 
 // Backup the whole database to a specific location, safer than manually coping files
@@ -47,9 +48,17 @@ const rows = await db.sql`SELECT * FROM example LIMIT ${limit}`;
 
 const rows2 = await db.sql`SELECT * FROM ${db.raw ( 'example' )} LIMIT ${limit}`;
 
-// Start a transaction, which is executed immediately and rolled back automatically if the function passed to the "transaction" method throws at any point
+// Start a batch, which will cause all queries to be executed as one, their output won't be available
 
 await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+
+await db.batch ( () => {
+  db.sql`INSERT INTO example VALUES( ${101}, ${'title101'}, ${'description101'} )`;
+  db.sql`INSERT INTO example VALUES( ${102}, ${'title102'}, ${'description102'} )`;
+  db.sql`INSERT INTO example VALUES( ${103}, ${'title103'}, ${'description103'} )`;
+});
+
+// Start a transaction, which is executed immediately and rolled back automatically if the function passed to the "transaction" method throws at any point
 
 const success = await db.transaction ( () => {
   await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;

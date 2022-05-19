@@ -3,7 +3,7 @@
 
 const MEMORY_DATABASE = ':memory:';
 
-const UNRESOLVABLE = new Promise<void> ( () => {} );
+const UNRESOLVABLE = new Promise<any> ( () => {} );
 
 /* EXPORT */
 
