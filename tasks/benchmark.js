@@ -14,19 +14,21 @@ import Database from '../dist/index.js';
 
   for ( let i = 0; i < 1; i++ ) {
 
-    await northwidth.prepare ( `SELECT * FROM "Order"` ).all ();
-    await northwidth.prepare ( `SELECT * FROM "Product"` ).all ();
-    await northwidth.prepare ( `SELECT * FROM "OrderDetail" LIMIT 10000` ).all ();
+    northwidth.prepare ( `SELECT * FROM "Order"` ).all ();
+    northwidth.prepare ( `SELECT * FROM "Product"` ).all ();
+    northwidth.prepare ( `SELECT * FROM "OrderDetail" LIMIT 10000` ).all ();
 
-    await test.prepare ( `CREATE TABLE lorem (info TEXT)` ).run ();
-    for ( let i = 0; i < 1000; i++ ) {
-      await test.prepare ( `INSERT INTO lorem VALUES ('${'Ipsum ' + i}')` ).run ();
-    }
+    test.prepare ( `CREATE TABLE lorem (info TEXT)` ).run ();
+    test.transaction ( () => {
+      for ( let i = 0; i < 1000; i++ ) {
+        test.prepare ( `INSERT INTO lorem VALUES ('${'Ipsum ' + i}')` ).run ();
+      }
+    });
 
-    await test.prepare ( `SELECT COUNT(info) AS rows FROM lorem` ).get ();
-    await test.prepare ( `SELECT * FROM lorem WHERE info IN ('${'Ipsum 2'}','${'Ipsum 3'}')` ).all ();
-    await test.prepare ( `SELECT * FROM lorem` ).all ();
-    await test.prepare ( `DROP TABLE lorem` ).run ();
+    test.prepare ( `SELECT COUNT(info) AS rows FROM lorem` ).get ();
+    test.prepare ( `SELECT * FROM lorem WHERE info IN ('${'Ipsum 2'}','${'Ipsum 3'}')` ).all ();
+    test.prepare ( `SELECT * FROM lorem` ).all ();
+    test.prepare ( `DROP TABLE lorem` ).run ();
 
   }
 
@@ -82,11 +84,11 @@ import Database from '../dist/index.js';
 
     await test.sql`CREATE TABLE lorem (info TEXT)`;
     await test.transaction ( async () => {
-      await test.batch ( async () => {
+      await test.batch ( () => {
         for ( let i = 0; i < 1000; i++ ) {
           test.sql`INSERT INTO lorem VALUES (${'Ipsum ' + i})`;
         }
-      })
+      });
     });
 
     await test.sql`SELECT COUNT(info) AS rows FROM lorem`;
