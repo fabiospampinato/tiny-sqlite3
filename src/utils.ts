@@ -1,13 +1,13 @@
 
 /* IMPORT */
 
-import {isArrayBuffer, isBoolean, isDate, isFinite, isNil, isNumber, isSharedArrayBuffer, isString, isUint8Array, isUint8ClampedArray} from 'is';
-import {Buffer} from 'node:buffer';
-import {randomUUID} from 'node:crypto';
-import fs from 'node:fs';
+import Hex from 'hex-encoding';
+import {isBoolean, isDate, isFinite, isNil, isNumber, isString, isUint8Array} from 'is';
 import os from 'node:os';
 import path from 'node:path';
 import once from 'once';
+import fs from 'stubborn-fs';
+import zeptoid from 'zeptoid';
 import {MEMORY_DATABASE} from '~/constants';
 import Database from '~/objects/database';
 import Error from '~/objects/error';
@@ -32,22 +32,31 @@ const builder = ( statics: TemplateStringsArray, dynamics: unknown[] ): string =
 
 const ensureFileSync = ( filePath: string ): void => {
 
-  if ( fs.existsSync ( filePath ) ) return;
+  if ( fs.attempt.existsSync ( filePath ) ) return;
 
   const folderPath = path.dirname ( filePath );
 
   try {
 
     ensureFolderSync ( folderPath );
-    fs.writeFileSync ( filePath, '' );
+
+    fs.retry.writeFileSync ( 250 )( filePath, '' );
 
   } catch {}
 
 };
 
+const ensureFileUnlinkSync = ( filePath: string ): void => {
+
+  if ( !fs.attempt.existsSync ( filePath ) ) return;
+
+  fs.attempt.unlinkSync ( filePath );
+
+};
+
 const ensureFolderSync = ( folderPath: string ): void => {
 
-  fs.mkdirSync ( folderPath, { recursive: true } );
+  fs.attempt.mkdirSync ( folderPath, { recursive: true } );
 
 };
 
@@ -89,9 +98,9 @@ const escape = ( value: unknown ): string | number => {
 
   }
 
-  if ( isUint8Array ( value ) || isUint8ClampedArray ( value ) || isArrayBuffer ( value ) || isSharedArrayBuffer ( value ) ) {
+  if ( isUint8Array ( value ) ) {
 
-    return `x'${Buffer.from ( value ).toString ( 'hex' )}'`;
+    return `x'${Hex.encode ( value )}'`;
 
   }
 
@@ -126,7 +135,7 @@ const getDatabaseMemoryPath = (): string => {
 
 };
 
-const getDatabasePath = ( db: Database | Uint8Array | Uint8ClampedArray | string ): string => {
+const getDatabasePath = ( db: Database | Uint8Array | string ): string => {
 
   if ( db instanceof Database ) {
 
@@ -134,11 +143,11 @@ const getDatabasePath = ( db: Database | Uint8Array | Uint8ClampedArray | string
 
   }
 
-  if ( isUint8Array ( db ) || isUint8ClampedArray ( db ) ) {
+  if ( isUint8Array ( db ) ) {
 
     const temp = getTempPath ();
 
-    fs.writeFileSync ( temp, db );
+    fs.retry.writeFileSync ( 250 )( temp, db );
 
     return temp;
 
@@ -156,10 +165,25 @@ const getDatabasePath = ( db: Database | Uint8Array | Uint8ClampedArray | string
 
 const getTempPath = (): string => {
 
-  return path.join ( os.tmpdir (), randomUUID () );
+  return path.join ( os.tmpdir (), zeptoid () );
+
+};
+
+const readFileBuffer = async ( filePath: string ): Promise<Uint8Array> => { //TODO: Move this to a worker thread
+
+  const buffer = await fs.retry.readFile ( 5000 )( filePath );
+  const uint8 = new Uint8Array ( buffer, buffer.byteOffset, buffer.byteLength );
+
+  return uint8;
+
+};
+
+const readFileString = ( filePath: string ): Promise<string> => { //TODO: Move this to a worker thread
+
+  return fs.retry.readFile ( 5000 )( filePath, 'utf8' );
 
 };
 
 /* EXPORT */
 
-export {builder, ensureFileSync, escape, getDatabaseBin, getDatabasePath, getTempPath};
+export {builder, ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, escape, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};

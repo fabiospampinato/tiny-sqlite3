@@ -1,14 +1,13 @@
 
 /* IMPORT */
 
-import {isUint8Array, isUint8ClampedArray} from 'is';
-import fs from 'node:fs';
+import {isUint8Array} from 'is';
 import whenExit from 'when-exit';
 import {MEMORY_DATABASE, UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Executor from '~/objects/executor';
 import Raw from '~/objects/raw';
-import {builder, getDatabaseBin, getDatabasePath, getTempPath} from '~/utils';
+import {builder, ensureFileUnlinkSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer} from '~/utils';
 import type {Options} from '~/types';
 
 /* MAIN */
@@ -33,7 +32,7 @@ class Database {
 
   /* CONSTRUCTOR */
 
-  constructor ( db: Database | Uint8Array | Uint8ClampedArray | string, options: Options = {} ) {
+  constructor ( db: Database | Uint8Array | string, options: Options = {} ) {
 
     const bin = getDatabaseBin ( options.bin );
     const path = getDatabasePath ( db );
@@ -58,7 +57,7 @@ class Database {
     }
 
     this.name = path;
-    this.memory = ( db === MEMORY_DATABASE || isUint8Array ( db ) || isUint8ClampedArray ( db ) );
+    this.memory = ( db === MEMORY_DATABASE || isUint8Array ( db ) );
     this.open = true;
     this.readonly = !!options.readonly;
     this.batching = false;
@@ -111,19 +110,7 @@ class Database {
 
     if ( this.memory ) {
 
-      try {
-
-        if ( fs.existsSync ( this.name ) ) {
-
-          fs.unlinkSync ( this.name );
-
-        }
-
-      } catch ( error: unknown ) {
-
-        console.log ( error );
-
-      }
+      ensureFileUnlinkSync ( this.name );
 
     }
 
@@ -141,10 +128,9 @@ class Database {
 
     await this.backup ( temp );
 
-    const buffer = await fs.promises.readFile ( temp );
-    const uint8 = new Uint8Array ( buffer, buffer.byteOffset, buffer.byteLength );
+    const uint8 = await readFileBuffer ( temp );
 
-    await fs.promises.unlink ( temp );
+    ensureFileUnlinkSync ( temp );
 
     return uint8;
 

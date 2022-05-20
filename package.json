@@ -26,11 +26,13 @@
     "tiny"
   ],
   "dependencies": {
+    "hex-encoding": "^2.0.0",
     "is": "npm:@fabiospampinato/is@^2.0.0",
     "once": "npm:@fabiospampinato/once@^2.0.0",
     "promise-make-naked": "^2.0.0",
-    "stubborn-fs": "^1.0.0",
-    "when-exit": "^2.0.0"
+    "stubborn-fs": "^1.2.0",
+    "when-exit": "^2.0.0",
+    "zeptoid": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^17.0.35",

@@ -1,12 +1,11 @@
 
 /* IMPORT */
 
-import fs from 'node:fs';
 import makePromiseNaked from 'promise-make-naked';
 import {UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Spawner from '~/objects/spawner';
-import {getTempPath} from '~/utils';
+import {getTempPath, readFileString} from '~/utils';
 import type {Callback, Options, Process} from '~/types';
 
 /* MAIN */
@@ -80,7 +79,7 @@ class Executor {
 
           } else { // Reading the output file
 
-            const output = await fs.promises.readFile ( this.outputPath, 'utf8' ); //TODO: Move this to a worker thread
+            const output = await readFileString ( this.outputPath );
 
             const result = output ? JSON.parse ( output ) : [];
 

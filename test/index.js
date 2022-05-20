@@ -209,34 +209,6 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
-  it ( 'can interpolate a uint8calmpedarray', async t => {
-
-    const db = new Database ( ':memory:' );
-
-    const data = new Uint8ClampedArray ([ 72, 101, 108, 108, 111, 44,  32,  87, 111, 114, 108, 100,  33 ]);
-
-    const rows = await db.sql`SELECT ${data} AS value`;
-
-    t.deepEqual ( rows, [{ value: 'Hello, World!' }] );
-
-    db.close ();
-
-  });
-
-  it ( 'can interpolate a arraybuffer', async t => {
-
-    const db = new Database ( ':memory:' );
-
-    const buffer = new Uint8Array ([ 72, 101, 108, 108, 111, 44,  32,  87, 111, 114, 108, 100,  33 ]).buffer;
-
-    const rows = await db.sql`SELECT ${buffer} AS value`;
-
-    t.deepEqual ( rows, [{ value: 'Hello, World!' }] );
-
-    db.close ();
-
-  });
-
   it ( 'can interpolate an undefined', async t => {
 
     const db = new Database ( ':memory:' );
