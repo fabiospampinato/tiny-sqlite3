@@ -66,9 +66,9 @@ const ensureFileSync = ( filePath: string ): void => {
 
 };
 
-const ensureFileUnlink = ( filePath: string ): void => {
+const ensureFileUnlink = ( filePath: string ): Promise<void> => {
 
-  fs.attempt.unlink ( filePath );
+  return fs.attempt.unlink ( filePath );
 
 };
 
