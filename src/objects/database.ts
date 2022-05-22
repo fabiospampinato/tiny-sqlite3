@@ -92,7 +92,7 @@ class Database {
 
       if ( this.batched.length ) {
 
-        const query = this.batched.join ( ';' );
+        const query = this.batched.join ( '\n;\n' );
 
         await this.executor.exec ( query, true );
 

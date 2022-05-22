@@ -262,7 +262,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return rodb.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
-    }, { message: 'SQLITE_ERROR: Runtime error near line 12: attempt to write a readonly database (8)\n' } );
+    }, { message: 'SQLITE_ERROR: Runtime error near line 14: attempt to write a readonly database (8)\n' } );
 
     db.close ();
     rodb.close ();
@@ -423,7 +423,7 @@ describe ( 'tiny-sqlite3', it => {
         db.sql`INSERT INTO example VALUES( ${3}, ${'title3'}, ${'description3'} )`;
         t.true ( db.batching );
       });
-    }, { message: 'SQLITE_ERROR: Runtime error near line 12: UNIQUE constraint failed: example.id (19)\n' } );
+    }, { message: 'SQLITE_ERROR: Runtime error near line 18: UNIQUE constraint failed: example.id (19)\n' } );
 
     t.false ( db.batching );
 
@@ -431,7 +431,8 @@ describe ( 'tiny-sqlite3', it => {
 
     const expected = [
       { id: 1, title: 'title1', description: 'description1' },
-      { id: 2, title: 'title2', description: 'description2' }
+      { id: 2, title: 'title2', description: 'description2' },
+      { id: 3, title: 'title3', description: 'description3' }
     ];
 
     t.deepEqual ( rows, expected );

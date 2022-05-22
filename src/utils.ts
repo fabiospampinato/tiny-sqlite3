@@ -40,6 +40,16 @@ const castError = ( error: unknown ): Error => {
 
 };
 
+const delay = ( ms: number ): Promise<void> => {
+
+  return new Promise ( resolve => {
+
+    setTimeout ( resolve, ms );
+
+  });
+
+};
+
 const ensureFileSync = ( filePath: string ): void => {
 
   if ( fs.attempt.existsSync ( filePath ) ) return;
@@ -200,4 +210,4 @@ const readFileString = ( filePath: string ): Promise<string> => {
 
 /* EXPORT */
 
-export {builder, castError, ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
+export {builder, castError, delay, ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
