@@ -571,6 +571,20 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'throws when nested batches are used', async t => { //TODO: Add support for them instead, it should be easy
+
+    const db = new Database ( ':memory:' );
+
+    await db.batch ( () => {
+      t.throwsAsync ( () => {
+        return db.batch ( () => {} );
+      }, { message: 'SQLITE_ERROR: nested batches are not supported' } );
+    });
+
+    db.close ();
+
+  });
+
   it ( 'throws when nested transactions are used', async t => { //TODO: Add support for them instead, it should be easy
 
     const db = new Database ( ':memory:' );
