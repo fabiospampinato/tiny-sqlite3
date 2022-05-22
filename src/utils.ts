@@ -56,6 +56,12 @@ const ensureFileSync = ( filePath: string ): void => {
 
 };
 
+const ensureFileUnlink = ( filePath: string ): void => {
+
+  fs.attempt.unlink ( filePath );
+
+};
+
 const ensureFileUnlinkSync = ( filePath: string ): void => {
 
   fs.attempt.unlinkSync ( filePath );
@@ -194,4 +200,4 @@ const readFileString = ( filePath: string ): Promise<string> => {
 
 /* EXPORT */
 
-export {builder, castError, ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
+export {builder, castError, ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};

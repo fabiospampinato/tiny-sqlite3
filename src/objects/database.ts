@@ -7,7 +7,7 @@ import {MEMORY_DATABASE, UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Executor from '~/objects/executor';
 import Raw from '~/objects/raw';
-import {builder, ensureFileUnlinkSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer} from '~/utils';
+import {builder, ensureFileUnlink, ensureFileUnlinkSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer} from '~/utils';
 import type {Options, Stats} from '~/types';
 
 /* MAIN */
@@ -135,7 +135,7 @@ class Database {
 
     const uint8 = await readFileBuffer ( temp );
 
-    ensureFileUnlinkSync ( temp );
+    await ensureFileUnlink ( temp );
 
     return uint8;
 
