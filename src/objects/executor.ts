@@ -75,16 +75,10 @@ class Executor {
 
       return new Promise ( done => {
 
-        const onClose = (): void => {
+        const onData = async ( data: string, attempt: number = 0 ): Promise<void> => {
 
           this.process.stdout.off ( 'data', onData );
           this.process.stderr.off ( 'data', onError );
-
-        };
-
-        const onData = async ( data: string, attempt: number = 0 ): Promise<void> => {
-
-          onClose ();
 
           try {
 
