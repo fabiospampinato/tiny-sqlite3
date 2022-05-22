@@ -36,7 +36,7 @@ const castError = ( error: unknown ): Error => {
 
   if ( isString ( error ) ) return new Error ( error );
 
-  return new Error ( 'Unknown error' );
+  return new Error ( 'unknown error' );
 
 };
 
