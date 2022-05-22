@@ -103,7 +103,7 @@ class Executor {
 
               } else {
 
-                await delay ( 50 );
+                await delay ( 200 );
 
                 return onData ( data, attempt + 1 );
 
