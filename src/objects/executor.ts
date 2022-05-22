@@ -82,7 +82,7 @@ class Executor {
 
         };
 
-        const onData = async (): Promise<void> => {
+        const onData = async ( data: string, attempt: number = 0 ): Promise<void> => {
 
           onClose ();
 
@@ -91,11 +91,23 @@ class Executor {
             const content = await readFileString ( this.outputPath );
             const termination = `[{"_":"${this.id}"}]\n`;
 
-            if ( !content.endsWith ( termination ) ) { // Trying again, the result of the termination query isn't there, the output isn't all there yet //TODO: Just fail after a number of attempts
+            if ( !content.endsWith ( termination ) ) { // Trying again, the result of the termination query isn't there, the output isn't all there yet
 
-              await delay ( 50 );
+              if ( attempt >= 50 ) {
 
-              return onData ();
+                const error = new Error ( 'query execution failed' );
+
+                reject ( error );
+
+                return done ();
+
+              } else {
+
+                await delay ( 50 );
+
+                return onData ( data, attempt + 1 );
+
+              }
 
             }
 
