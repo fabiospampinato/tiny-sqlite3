@@ -12,9 +12,10 @@ import type {Options} from '~/types';
 
 /* MAIN */
 
+//TODO: Support automatically closing and re-opening databases
 //TODO: Support WASM and make this interface isomorphic
-//TODO: Support bundling
-//TODO: The arm64 build for Windows is not actually for arm64
+//TODO: Support bundling, somehow
+//TODO: The ARM64 build for Windows is not actually for ARM64
 
 class Database {
 
@@ -89,9 +90,13 @@ class Database {
 
       await fn ();
 
-      const query = this.batched.join ( ';' );
+      if ( this.batched.length ) {
 
-      await this.executor.exec ( query, true );
+        const query = this.batched.join ( ';' );
+
+        await this.executor.exec ( query, true );
+
+      }
 
     } finally {
 

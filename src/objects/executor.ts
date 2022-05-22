@@ -5,7 +5,7 @@ import makePromiseNaked from 'promise-make-naked';
 import {UNRESOLVABLE} from '~/constants';
 import Error from '~/objects/error';
 import Spawner from '~/objects/spawner';
-import {getTempPath, readFileString} from '~/utils';
+import {castError, getTempPath, readFileString} from '~/utils';
 import type {Callback, Options, Process} from '~/types';
 
 /* MAIN */
@@ -15,6 +15,7 @@ class Executor {
   /* VARIABLES */
 
   private lock: Promise<void>;
+  private open: boolean;
   private outputPath: string; //TODO: replace this with an in-memory stream, somehow
   private process: Process;
 
@@ -23,6 +24,7 @@ class Executor {
   constructor ( bin: string, args: string[], options: Options, onClose: Callback ) {
 
     this.lock = Promise.resolve ();
+    this.open = true;
     this.outputPath = getTempPath ();
     this.process = Spawner.spawn ( bin, args );
 
@@ -46,15 +48,21 @@ class Executor {
 
   close (): void {
 
+    if ( !this.open ) return;
+
     this.exec ( '.quit', true );
 
     this.lock = UNRESOLVABLE;
+
+    this.open = false;
 
   }
 
   exec <T = unknown> ( query: string, noOutput: true ): Promise<[]>;
   exec <T = unknown> ( query: string, noOutput?: false ): Promise<T>;
   exec <T = unknown> ( query: string, noOutput: boolean = false ): Promise<T | []> {
+
+    if ( !this.open ) throw new Error ( 'database connection closed' );
 
     const {promise, resolve, reject} = makePromiseNaked<T | []> ();
 
@@ -79,11 +87,19 @@ class Executor {
 
           } else { // Reading the output file
 
-            const output = await readFileString ( this.outputPath );
+            try {
 
-            const result = output ? JSON.parse ( output ) : [];
+              const output = await readFileString ( this.outputPath );
 
-            resolve ( result );
+              const result = output ? JSON.parse ( output ) : [];
+
+              resolve ( result );
+
+            } catch ( error: unknown ) {
+
+              reject ( castError ( error ) );
+
+            }
 
           }
 

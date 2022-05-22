@@ -7,8 +7,6 @@ import type {Process} from '~/types';
 
 /* MAIN */
 
-//TODO: Make this even more reliable, really trying hard to write the file on disk, though consider multi-process scenarios too
-
 const Spawner = {
 
   /* API */
@@ -17,7 +15,7 @@ const Spawner = {
 
     ensureFileSync ( args[0] );
 
-    return spawn ( bin, args );
+    return spawn ( bin, args ); //TODO: Spawn more reliably, somehow
 
   }
 

@@ -10,6 +10,18 @@ import Database from '../dist/index.js';
 
 describe ( 'tiny-sqlite3', it => {
 
+  it ( 'can be closed multiple times without throwing', t => {
+
+    const db = new Database ( ':memory:' );
+
+    db.close ();
+    db.close ();
+    db.close ();
+
+    t.pass ();
+
+  });
+
   it ( 'can create an in-disk database', async t => {
 
     const db = new Database ( 'test.db' );
@@ -596,6 +608,18 @@ describe ( 'tiny-sqlite3', it => {
     });
 
     db.close ();
+
+  });
+
+  it ( 'throws when querying after closing', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    db.close ();
+
+    await t.throwsAsync ( () => {
+      return db.sql`SELECT 1;`;
+    }, { message: 'SQLITE_ERROR: database connection closed' } );
 
   });
 

@@ -2,7 +2,7 @@
 /* IMPORT */
 
 import Hex from 'hex-encoding';
-import {isBoolean, isDate, isFinite, isNil, isNumber, isString, isUint8Array} from 'is';
+import {isBoolean, isDate, isError, isFinite, isNil, isNumber, isString, isUint8Array} from 'is';
 import os from 'node:os';
 import path from 'node:path';
 import once from 'once';
@@ -30,6 +30,16 @@ const builder = ( statics: TemplateStringsArray, dynamics: unknown[] ): string =
 
 };
 
+const castError = ( error: unknown ): Error => {
+
+  if ( isError ( error ) ) return new Error ( error.message );
+
+  if ( isString ( error ) ) return new Error ( error );
+
+  return new Error ( 'Unknown error' );
+
+};
+
 const ensureFileSync = ( filePath: string ): void => {
 
   if ( fs.attempt.existsSync ( filePath ) ) return;
@@ -40,15 +50,13 @@ const ensureFileSync = ( filePath: string ): void => {
 
     ensureFolderSync ( folderPath );
 
-    fs.retry.writeFileSync ( 250 )( filePath, '' );
+    fs.retry.writeFileSync ( 1000 )( filePath, '' );
 
   } catch {}
 
 };
 
 const ensureFileUnlinkSync = ( filePath: string ): void => {
-
-  if ( !fs.attempt.existsSync ( filePath ) ) return;
 
   fs.attempt.unlinkSync ( filePath );
 
@@ -147,7 +155,7 @@ const getDatabasePath = ( db: Database | Uint8Array | string ): string => {
 
     const temp = getTempPath ();
 
-    fs.retry.writeFileSync ( 250 )( temp, db );
+    fs.retry.writeFileSync ( 1000 )( temp, db );
 
     return temp;
 
@@ -169,7 +177,7 @@ const getTempPath = (): string => {
 
 };
 
-const readFileBuffer = async ( filePath: string ): Promise<Uint8Array> => { //TODO: Move this to a worker thread
+const readFileBuffer = async ( filePath: string ): Promise<Uint8Array> => {
 
   const buffer = await fs.retry.readFile ( 5000 )( filePath );
   const uint8 = new Uint8Array ( buffer, buffer.byteOffset, buffer.byteLength );
@@ -178,7 +186,7 @@ const readFileBuffer = async ( filePath: string ): Promise<Uint8Array> => { //TO
 
 };
 
-const readFileString = ( filePath: string ): Promise<string> => { //TODO: Move this to a worker thread
+const readFileString = ( filePath: string ): Promise<string> => {
 
   return fs.retry.readFile ( 5000 )( filePath, 'utf8' );
 
@@ -186,4 +194,4 @@ const readFileString = ( filePath: string ): Promise<string> => { //TODO: Move t
 
 /* EXPORT */
 
-export {builder, ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, escape, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
+export {builder, castError, ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
