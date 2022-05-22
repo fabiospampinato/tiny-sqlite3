@@ -58,9 +58,11 @@ class Executor {
 
   }
 
-  exec <T = unknown> ( query: string, noOutput: true ): Promise<[]>;
-  exec <T = unknown> ( query: string, noOutput?: false ): Promise<T>;
-  exec <T = unknown> ( query: string, noOutput: boolean = false ): Promise<T | []> {
+  exec <T = unknown> ( query: string, noOutput: true, noParse: true ): Promise<string>;
+  exec <T = unknown> ( query: string, noOutput: true, noParse?: false ): Promise<[]>;
+  exec <T = unknown> ( query: string, noOutput: false, noParse: true ): Promise<string>;
+  exec <T = unknown> ( query: string, noOutput?: false, noParse?: false ): Promise<T>;
+  exec <T = unknown> ( query: string, noOutput: boolean = false, noParse: boolean = false ): Promise<T | [] | string> {
 
     if ( !this.open ) throw new Error ( 'database connection closed' );
 
@@ -91,7 +93,7 @@ class Executor {
 
               const output = await readFileString ( this.outputPath );
 
-              const result = output ? JSON.parse ( output ) : [];
+              const result = noParse ? output : ( output ? JSON.parse ( output ) : [] );
 
               resolve ( result );
 

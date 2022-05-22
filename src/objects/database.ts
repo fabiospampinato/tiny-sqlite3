@@ -8,7 +8,7 @@ import Error from '~/objects/error';
 import Executor from '~/objects/executor';
 import Raw from '~/objects/raw';
 import {builder, ensureFileUnlinkSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer} from '~/utils';
-import type {Options} from '~/types';
+import type {Options, Stats} from '~/types';
 
 /* MAIN */
 
@@ -156,6 +156,15 @@ class Database {
       return this.executor.exec<T> ( query );
 
     }
+
+  };
+
+  stats = async (): Promise<Stats> => {
+
+    const statsRaw = await this.executor.exec<string> ( '.stats', false, true );
+    const stats = Object.fromEntries ( statsRaw.split ( /\r?\n/ ).filter ( line => line ).map ( line => line.split ( ':' ).map ( key => key.trim () ) ) );
+
+    return stats;
 
   };
 

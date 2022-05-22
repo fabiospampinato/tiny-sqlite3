@@ -117,6 +117,18 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'can return some statistics', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const stats = await db.stats ();
+
+    t.is ( typeof stats['Memory Used'], 'string' );
+
+    db.close ();
+
+  });
+
   it ( 'can interpolate a boolean', async t => {
 
     const db = new Database ( ':memory:' );

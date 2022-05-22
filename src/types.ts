@@ -13,6 +13,8 @@ type Options = {
 
 type Process = import ( 'node:child_process' ).ChildProcessWithoutNullStreams;
 
+type Stats = Record<string, string>;
+
 /* EXPORT */
 
-export type {Callback, Options, Process};
+export type {Callback, Options, Process, Stats};
