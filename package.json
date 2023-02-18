@@ -17,7 +17,7 @@
     "test": "tsex test",
     "test:watch": "tsex test --watch",
     "update": "bash tasks/update.sh",
-    "prepublishOnly": "npm run clean && npm run compile && npm run test"
+    "prepublishOnly": "tsex prepare"
   },
   "keywords": [
     "sqlite3",
@@ -26,20 +26,20 @@
     "tiny"
   ],
   "dependencies": {
-    "hex-encoding": "^2.0.0",
-    "is": "npm:@fabiospampinato/is@^2.0.0",
+    "hex-encoding": "^2.0.2",
+    "is": "npm:@fabiospampinato/is@^2.5.0",
     "once": "npm:@fabiospampinato/once@^2.0.0",
     "promise-make-naked": "^2.0.0",
-    "stubborn-fs": "^1.2.0",
-    "when-exit": "^2.0.0",
+    "stubborn-fs": "^1.2.4",
+    "when-exit": "^2.1.0",
     "zeptoid": "^1.0.1"
   },
   "devDependencies": {
-    "@types/node": "^17.0.35",
-    "better-sqlite3": "^7.5.3",
-    "fava": "0.0.6",
+    "@types/node": "^18.14.0",
+    "better-sqlite3": "^8.1.0",
+    "fava": "0.2.0",
     "sqlite-tag-spawned": "^0.6.0",
-    "tsex": "^1.1.2",
-    "typescript": "^4.6.4"
+    "tsex": "^2.2.0",
+    "typescript": "^4.9.5"
   }
 }
