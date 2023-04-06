@@ -132,11 +132,23 @@ const escape = ( value: unknown ): string | number => {
 
 };
 
+const getArch = () => {
+  switch ( os.arch () ) {
+    case 'arm64':
+      return 'arm64'
+    case 'x64':
+      return 'x64'
+    case 'x86':
+    default:
+      return 'x86'
+  }
+}
+
 const getDatabasePlatformBin = once ((): string => {
 
   const dirname = new URL ( '.', import.meta.url ).pathname;
   const platform = os.platform ();
-  const arch = ( os.arch () === 'arm64' ) ? 'arm64' : 'x86';
+  const arch = getArch ()
   const ext = ( platform === 'win32' ) ? '.exe' : '';
   const binary = `sqlite3-${platform}-${arch}${ext}`;
   const bin = path.join ( dirname, '..', 'resources', 'binaries', binary );

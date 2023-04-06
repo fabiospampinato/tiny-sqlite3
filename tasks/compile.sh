@@ -11,4 +11,4 @@ cd sqlite-snapshot-$SNAPSHOT
 gcc shell.c sqlite3.c -lpthread -ldl -lm -o sqlite3
 
 # WINDOWS
-//TODO: Compile an ARM64 binary for Windows
+# //TODO: Compile an ARM64 binary for Windows
