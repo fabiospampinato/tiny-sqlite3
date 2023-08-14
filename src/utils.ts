@@ -131,7 +131,7 @@ const escape = ( value: unknown ): string | number => {
 
 };
 
-const getDatabasePlatformBin = once ((): string => {
+const getDatabaseBin = once ((): string => {
 
   const dirname = new URL ( '.', import.meta.url ).pathname;
   const platform = os.platform ();
@@ -143,14 +143,6 @@ const getDatabasePlatformBin = once ((): string => {
   return bin;
 
 });
-
-const getDatabaseBin = ( bin?: string ): string => {
-
-  if ( !bin ) return getDatabasePlatformBin ();
-
-  return bin;
-
-};
 
 const getDatabaseMemoryPath = (): string => {
 
@@ -212,7 +204,7 @@ const isError = ( value: unknown ): value is Error => {
 
 const isFinite = ( value: unknown ): value is number => {
 
-  return isNumber ( value ) && Number.isFinite ( value );
+  return Number.isFinite ( value );
 
 };
 

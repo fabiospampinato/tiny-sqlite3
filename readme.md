@@ -103,7 +103,6 @@ Basically `better-sqlite3` returns results faster, but it blocks for longer. Dep
 
 ![](resources/screenshots/tiny-sqlite3.png)
 
-
 ## Thanks
 
 - [`sqlite-tag-spawned`](https://github.com/WebReflection/sqlite-tag-spawned): for providing a sort of reference implementation, `tiny-sqlite3` is very much derivative work of `sqlite-tag-spawned`.

@@ -34,7 +34,7 @@ class Database {
 
   constructor ( db: Database | Uint8Array | string, options: Options = {} ) {
 
-    const bin = getDatabaseBin ( options.bin );
+    const bin = options.bin || getDatabaseBin ();
     const path = getDatabasePath ( db );
     const args = [path];
 
