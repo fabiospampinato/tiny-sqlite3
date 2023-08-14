@@ -3,7 +3,6 @@
 
 import once from 'function-once';
 import Hex from 'hex-encoding';
-import {isBoolean, isDate, isError, isFinite, isNil, isNumber, isString, isUint8Array} from 'is';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'stubborn-fs';
@@ -193,6 +192,54 @@ const getTempPath = (): string => {
 
 };
 
+const isBoolean = ( value: unknown ): value is boolean => {
+
+  return typeof value === 'boolean';
+
+};
+
+const isDate = ( value: unknown ): value is Date => {
+
+  return value instanceof Date;
+
+};
+
+const isError = ( value: unknown ): value is Error => {
+
+  return value instanceof Error;
+
+};
+
+const isFinite = ( value: unknown ): value is number => {
+
+  return isNumber ( value ) && Number.isFinite ( value );
+
+};
+
+const isNil = ( value: unknown ): value is null | undefined => {
+
+  return value === null || value === undefined;
+
+};
+
+const isNumber = ( value: unknown ): value is number => {
+
+  return typeof value === 'number';
+
+};
+
+const isString = ( value: unknown ): value is string => {
+
+  return typeof value === 'string';
+
+};
+
+const isUint8Array = ( value: unknown ): value is Uint8Array => {
+
+  return value instanceof Uint8Array;
+
+};
+
 const readFileBuffer = async ( filePath: string ): Promise<Uint8Array> => {
 
   const buffer = await fs.retry.readFile ( 5000 )( filePath );
@@ -210,4 +257,4 @@ const readFileString = ( filePath: string ): Promise<string> => {
 
 /* EXPORT */
 
-export {builder, castError, delay, ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, readFileBuffer, readFileString};
+export {builder, castError, delay, ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getDatabaseBin, getDatabasePath, getTempPath, isBoolean, isDate, isError, isFinite, isNil, isNumber, isString, isUint8Array, readFileBuffer, readFileString};

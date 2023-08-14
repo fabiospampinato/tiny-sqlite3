@@ -28,7 +28,6 @@
   "dependencies": {
     "function-once": "^3.0.0",
     "hex-encoding": "^2.0.2",
-    "is": "npm:@fabiospampinato/is@^2.5.0",
     "promise-make-naked": "^2.0.0",
     "stubborn-fs": "^1.2.4",
     "when-exit": "^2.1.0",
