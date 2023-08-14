@@ -1,11 +1,11 @@
 
 /* IMPORT */
 
+import once from 'function-once';
 import Hex from 'hex-encoding';
 import {isBoolean, isDate, isError, isFinite, isNil, isNumber, isString, isUint8Array} from 'is';
 import os from 'node:os';
 import path from 'node:path';
-import once from 'once';
 import fs from 'stubborn-fs';
 import zeptoid from 'zeptoid';
 import {MEMORY_DATABASE} from '~/constants';
