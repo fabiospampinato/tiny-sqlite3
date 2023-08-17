@@ -2,28 +2,32 @@
 /* IMPORT */
 
 import whenExit from 'when-exit';
-import {MEMORY_DATABASE, UNRESOLVABLE} from '~/constants';
-import Error from '~/objects/error';
-import Executor from '~/objects/executor';
-import Raw from '~/objects/raw';
-import {builder, ensureFileUnlink, ensureFileUnlinkSync, getDatabaseBin, getDatabasePath, getTempPath, isUint8Array, readFileBuffer} from '~/utils';
-import type {Options, Stats} from '~/types';
+import {MEMORY_DATABASE, TEMPORARY_DATABASE, NULL_PATH, PAGE_SIZE, UNRESOLVABLE} from '../constants';
+import {getDatabaseBin, getDatabasePath} from '../utils/database';
+import {ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, getTempPath, readFile} from '../utils/fs';
+import {isUint8Array} from '../utils/lang';
+import Builder from './builder';
+import Executor from './executor';
+import Raw from './raw';
+import type {Info, Options, Stats} from '../types';
 
 /* MAIN */
 
-//TODO: Support automatically closing and re-opening databases
 //TODO: Support WASM and make this interface isomorphic
 //TODO: Support bundling, somehow
-//TODO: The ARM64 build for Windows is not actually for ARM64
+//TODO: Support an ARM64 build for Windows (the current one is just a copy of the x86 one)
+//TODO: Support a singletone mode, where .open is used to change DB on the same process
+//TODO: Support a TTL parameter, for auto-disposing of unnecessary processes
+//TODO: Support a pooling mode, where a maximum number of processes is spawned and reused
 
 class Database {
 
   /* VARIABLES */
 
-  public name: string;
+  public path: string;
   public memory: boolean;
-  public open: boolean;
   public readonly: boolean;
+  public temporary: boolean;
   public batching: boolean;
   public transacting: boolean;
 
@@ -32,11 +36,31 @@ class Database {
 
   /* CONSTRUCTOR */
 
-  constructor ( db: Database | Uint8Array | string, options: Options = {} ) {
+  constructor ( db: Uint8Array | string, options: Options = {} ) {
 
     const bin = options.bin || getDatabaseBin ();
     const path = getDatabasePath ( db );
+    const memory = ( db === MEMORY_DATABASE );
+    const temporary = ( db === TEMPORARY_DATABASE || isUint8Array ( db ) );
     const args = [path];
+
+    if ( !memory ) {
+
+      ensureFileSync ( path );
+
+    }
+
+    if ( options.limit ) {
+
+      const maxPageCount = Math.ceil ( options.limit / PAGE_SIZE );
+
+      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', `PRAGMA max_page_count=${maxPageCount}`, '-cmd', '.output' );
+
+    } else {
+
+      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', '.output' );
+
+    }
 
     if ( options.readonly ) {
 
@@ -50,21 +74,27 @@ class Database {
 
     }
 
+    if ( options.wal ) {
+
+      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', 'PRAGMA synchronous=NORMAL', '-cmd', 'PRAGMA journal_mode=WAL', '-cmd', '.output' );
+
+    }
+
     if ( options.args ) {
 
       args.push ( ...options.args );
 
     }
 
-    this.name = path;
-    this.memory = ( db === MEMORY_DATABASE || isUint8Array ( db ) );
-    this.open = true;
+    this.path = path;
+    this.memory = memory;
     this.readonly = !!options.readonly;
+    this.temporary = temporary;
     this.batching = false;
     this.transacting = false;
 
     this.batched = [];
-    this.executor = new Executor ( bin, args, options, this.close );
+    this.executor = new Executor ( bin, args, this.close );
 
     whenExit ( this.close );
 
@@ -74,13 +104,13 @@ class Database {
 
   backup = async ( filePath: string ): Promise<void> => {
 
-    await this.executor.exec ( `.backup '${filePath}'`, true );
+    await this.json`.backup ${filePath}`;
 
   };
 
   batch = async ( fn: () => void ): Promise<void> => {
 
-    if ( this.batching ) throw new Error ( 'nested batches are not supported' );
+    if ( this.batching ) throw new Error ( 'Nested batches are not supported' );
 
     try {
 
@@ -108,15 +138,46 @@ class Database {
 
   close = (): void => {
 
-    this.open = false;
-
     this.executor.close ();
 
-    if ( this.memory ) {
+    if ( this.temporary ) {
 
-      ensureFileUnlinkSync ( this.name );
+      ensureFileUnlinkSync ( this.path );
 
     }
+
+  };
+
+  info = async (): Promise<Info> => {
+
+    const infoRaw = await this.json`.dbinfo`;
+    const info = Object.fromEntries ( infoRaw.split ( /\r?\n/ ).filter ( line => line ).map ( line => line.split ( ':' ).map ( key => key.trim () ) ) );
+
+    return info;
+
+  };
+
+  json = ( strings: TemplateStringsArray, ...expressions: unknown[] ): Promise<string> => {
+
+    const query = Builder.build ( strings, expressions );
+
+    if ( this.batching ) {
+
+      this.batched.push ( query );
+
+      return UNRESOLVABLE;
+
+    } else {
+
+      return this.executor.exec ( query, false, true );
+
+    }
+
+  };
+
+  pid = (): number | undefined => {
+
+    return this.executor.process?.pid;
 
   };
 
@@ -126,13 +187,19 @@ class Database {
 
   };
 
+  recover = async (): Promise<string> => {
+
+    return await this.json`.recover`;
+
+  };
+
   serialize = async (): Promise<Uint8Array> => {
 
     const temp = getTempPath ();
 
     await this.backup ( temp );
 
-    const uint8 = await readFileBuffer ( temp );
+    const uint8 = await readFile ( temp );
 
     await ensureFileUnlink ( temp );
 
@@ -140,9 +207,17 @@ class Database {
 
   };
 
+  size = async (): Promise<number> => {
+
+    const result = await this.sql`SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()`;
+
+    return result[0].size;
+
+  };
+
   sql = <T = any> ( strings: TemplateStringsArray, ...expressions: unknown[] ): Promise<T> => {
 
-    const query = builder ( strings, expressions );
+    const query = Builder.build ( strings, expressions );
 
     if ( this.batching ) {
 
@@ -160,7 +235,7 @@ class Database {
 
   stats = async (): Promise<Stats> => {
 
-    const statsRaw = await this.executor.exec<string> ( '.stats', false, true );
+    const statsRaw = await this.json`.stats`;
     const stats = Object.fromEntries ( statsRaw.split ( /\r?\n/ ).filter ( line => line ).map ( line => line.split ( ':' ).map ( key => key.trim () ) ) );
 
     return stats;
@@ -169,7 +244,7 @@ class Database {
 
   transaction = async ( fn: () => void ): Promise<boolean> => {
 
-    if ( this.transacting ) throw new Error ( 'nested transactions are not supported' );
+    if ( this.transacting ) throw new Error ( 'Nested transactions are not supported' );
 
     try {
 

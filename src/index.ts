@@ -1,7 +1,7 @@
 
 /* IMPORT */
 
-import Database from '~/objects/database';
+import Database from './objects/database';
 
 /* EXPORT */
 

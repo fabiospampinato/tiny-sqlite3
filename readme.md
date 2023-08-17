@@ -1,8 +1,8 @@
 # Tiny SQLite3
 
-A tiny cross-platform client for SQLite3, with precompiled binaries as the only third-party dependencies.
+A tiny cross-platform client for SQLite3, with [precompiled binaries](https://github.com/fabiospampinato/sqlite-binaries) as the only third-party dependencies.
 
-A nice feature about this module is that queries are processed in another process by SQLite3, and Node's hyper-slow streams are bypassed, so actually the main thread stays idle and able to perform work almost for the entire time, while `better-sqlite3` blocks.
+A nice feature about this library is that queries are processed in another process by SQLite3, so actually the main thread stays idle and able to perform work almost for the entire time, while `better-sqlite3` blocks.
 
 ## Install
 
@@ -15,28 +15,43 @@ npm install --save tiny-sqlite3
 ```ts
 import Database from 'tiny-sqlite3';
 
-// Create a temporary in-memory database
+// Create an in-memory database
 
 const mem = new Database ( ':memory:' );
 
-// Create a permament in-disk database
+// Create a permament on-disk database
 
 const db = new Database ( 'foo.db' );
 
+// Create a temporary on-disk database, which is automatically deleted when the database is closed
+
+const temp = new Database ( '' );
+
+// Create a database with custom options
+
+const custom = new Database ( 'bar.db', {
+  bin: 'sqlite3', // Path to the sqlite3 binary to use
+  args: ['-bail'], // Extra arguments to use when creating a database
+  limit: 1_000_000, // Maximum allowed size of the database, in bytes
+  readonly: true, // Opening the database in read-only mode
+  timeout: 60_000, // Maximum amount of time allowed for a query
+  wal: true // Using the WAL journaling mode, rather than the default one
+});
+
 // Read the various properties attached to the database instance
 
-db.name // => full path to the main file containing the data for the database
-db.memory // => whether it's in an in-memory database or not, in-memory databases are actually just stored in temporary files on disk
-db.open // => whether there's a connection to the database or not
+db.path // => full path to the main file containing the data for the database, or ":memory:" if it's an in-memory database
+db.memory // => whether it's in an in-memory database or not
 db.readonly // => whether the database is opened in read-only mode or not
-db.batching // => Whether queries are currently being executed in a batch or not
+db.temporary // => whether it's a temporary database or not, temporary databases are automatically deleted from disk on close
+db.batching // => whether queries are currently being executed in a batch or not
 db.transacting // => whether a transaction is currently being executed or not
 
 // Backup the whole database to a specific location, safer than manually coping files
 
 await db.backup ( 'foo.db.bak' );
 
-// Serialize the database to a Uint8Array, and create a new in-memory database from that Uint8Array
+// Serialize the database to a Uint8Array, and create a new temporary database from that Uint8Array
 
 const serialized = await db.serialize ();
 const deserialized = new Database ( serialized );
@@ -49,6 +64,30 @@ const rows = await db.sql`SELECT * FROM example LIMIT ${limit}`;
 // Interpolate a raw, unescaped, string in a SQL query
 
 const rows2 = await db.sql`SELECT * FROM ${db.raw ( 'example' )} LIMIT ${limit}`;
+
+// Perform a SQL query, but get the result as plain JSON instead
+
+const rowsJSON = await db.json`SELECT * FROM example LIMIT ${limit}`;
+
+// Conveniently get some information about the database, using the ".dbinfo" command
+
+const info = await db.info ();
+
+// Conveniently get some statistics about the database, using the ".stats" command
+
+const stats = await db.stats ();
+
+// Recover as much data as possible from a corrupted database, using the ".recover" command
+
+const recovered = await db.recover ();
+
+// Get the PID of the underlying sqlite process, if any
+
+const pid = db.pid ();
+
+// Get the current size of the database
+
+const size = await db.size ();
 
 // Start a batch, which will cause all queries to be executed as one, their output won't be available
 

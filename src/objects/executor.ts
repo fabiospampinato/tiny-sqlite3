@@ -1,13 +1,12 @@
 
 /* IMPORT */
 
+import {spawn} from 'node:child_process';
 import makePromiseNaked from 'promise-make-naked';
 import zeptoid from 'zeptoid';
-import {UNRESOLVABLE} from '~/constants';
-import Error from '~/objects/error';
-import Spawner from '~/objects/spawner';
-import {castError, delay, getTempPath, readFileString} from '~/utils';
-import type {Callback, Options, Process} from '~/types';
+import {castError, isNull} from '../utils/lang';
+import Rope from './rope';
+import type {Callback, Process} from '../types';
 
 /* MAIN */
 
@@ -15,129 +14,244 @@ class Executor {
 
   /* VARIABLES */
 
+  public process?: Process;
+
   private id: string;
+  private idMarker: string;
+  private bin: string;
+  private args: string[];
   private lock: Promise<void>;
-  private open: boolean;
-  private outputPath: string; //TODO: Maybe replace this with a *performant* in-memory stream, if possible
-  private process: Process;
+  private onClose: Callback;
 
   /* CONSTRUCTOR */
 
-  constructor ( bin: string, args: string[], options: Options, onClose: Callback ) {
+  constructor ( bin: string, args: string[], onClose: Callback ) {
 
     this.id = zeptoid ();
+    this.idMarker = `[{"_":"${this.id}"}]\n`;
+    this.bin = bin;
+    this.args = [...args, '-cmd', '.mode json'];
     this.lock = Promise.resolve ();
-    this.open = true;
-    this.outputPath = getTempPath ();
-    this.process = Spawner.spawn ( bin, args );
-
-    this.process.stdin.setDefaultEncoding ( 'utf8' );
-    this.process.stderr.setEncoding ( 'utf8' );
-    this.process.stdout.setEncoding ( 'utf8' );
-
-    this.process.on ( 'close', onClose );
-
-    this.exec ( '.mode json', true );
-
-    if ( options.wal ) {
-
-      this.exec ( 'PRAGMA journal_mode=WAL', true );
-
-    }
+    this.onClose = onClose;
 
   }
 
   /* API */
 
-  close (): void {
+  open (): Process {
 
-    if ( !this.open ) return;
+    const process = this.process;
 
-    this.exec ( '.quit', true );
+    if ( process && isNull ( process.exitCode ) ) return process; // Still running
 
-    this.lock = UNRESOLVABLE;
+    this.process = spawn ( this.bin, this.args );
 
-    this.open = false;
+    this.process.stdin.setDefaultEncoding ( 'utf8' );
+    this.process.stderr.setEncoding ( 'utf8' );
+    this.process.stdout.setEncoding ( 'utf8' );
+
+    this.process.on ( 'exit', this.onClose );
+
+    return this.process;
 
   }
 
-  exec <T = unknown> ( query: string, noOutput: true, noParse: true ): Promise<string>;
-  exec <T = unknown> ( query: string, noOutput: true, noParse?: false ): Promise<[]>;
-  exec <T = unknown> ( query: string, noOutput: false, noParse: true ): Promise<string>;
-  exec <T = unknown> ( query: string, noOutput?: false, noParse?: false ): Promise<T>;
-  exec <T = unknown> ( query: string, noOutput: boolean = false, noParse: boolean = false ): Promise<T | [] | string> {
+  close (): void {
 
-    if ( !this.open ) throw new Error ( 'database connection closed' );
+    const process = this.process;
 
-    const {promise, resolve, reject} = makePromiseNaked<T | []> ();
+    if ( !process ) return; // Already closed, or never started
+
+    if ( isNull ( process.exitCode ) ) { // Still running, closing it
+
+      // Quitting with patience
+
+      this.exec ( '.quit', true, true, process ).catch ( () => {
+
+        // Quitting without patience
+
+        process.kill (  'SIGKILL' );
+        process.kill (  'SIGKILL' );
+        process.kill (  'SIGKILL' );
+
+      });
+
+    }
+
+    this.lock = Promise.resolve ();
+    this.process = undefined;
+
+  }
+
+  exec <T = unknown> ( query: string, noOutput: true, noParse: true, target?: Process ): Promise<string>;
+  exec <T = unknown> ( query: string, noOutput: true, noParse?: false, target?: Process ): Promise<[]>;
+  exec <T = unknown> ( query: string, noOutput: false, noParse: true, target?: Process ): Promise<string>;
+  exec <T = unknown> ( query: string, noOutput?: false, noParse?: false, target?: Process ): Promise<T>;
+  exec <T = unknown> ( query: string, noOutput: boolean = false, noParse: boolean = false, target?: Process ): Promise<T | [] | string> {
+
+    const {promise, resolve, reject, isPending} = makePromiseNaked<T | []> ();
 
     this.lock = this.lock.then ( () => {
 
+      const process = target || this.open ();
+
       return new Promise ( done => {
 
-        const onData = async ( data: string, attempt: number = 0 ): Promise<void> => {
+        let stdout = new Rope ();
+        let stderr = new Rope ();
 
-          this.process.stdout.off ( 'data', onData );
-          this.process.stderr.off ( 'data', onError );
+        let stdoutEnded = false;
+        let stderrEnded = false;
+
+        const onQuery = (): void => {
 
           try {
 
-            const content = await readFileString ( this.outputPath );
-            const termination = `[{"_":"${this.id}"}]\n`;
+            process.stdin.write ( `${query}\n;\n` ); // Executing the actual query
+            process.stdin.write ( `SELECT '${this.id}' AS _;\n` ); // Executing the stdout termination query, to make sure we know when the stdout stream ends
+            process.stdin.write ( `.output stderr\nSELECT '${this.id}' AS _;\n.output\n` ); // Executing the stderr termination query, to make sure we know when the stderr stream ends
 
-            if ( !content.endsWith ( termination ) ) { // Trying again, the result of the termination query isn't there, the output isn't all there yet
+          } catch ( error: unknown ) {
 
-              if ( attempt >= 50 ) {
+            onReject ( error );
 
-                const error = new Error ( 'query execution failed' );
+            onDone ();
 
-                reject ( error );
+          }
 
-                return done ();
+        };
 
-              } else {
+        const onListen = (): void => {
 
-                await delay ( 200 );
+          process.on ( 'exit', onClose );
+          process.stdout.on ( 'data', onStdout );
+          process.stderr.on ( 'data', onStderr );
 
-                return onData ( data, attempt + 1 );
+        };
 
-              }
+        const onUnlisten = (): void => {
+
+          process.off ( 'exit', onClose );
+          process.stdout.off ( 'data', onStdout );
+          process.stderr.off ( 'data', onStderr );
+
+        };
+
+        const onClose = (): void => {
+
+          if ( !isPending () ) return;
+
+          if ( query === '.quit' ) { // We closed it, all good
+
+            onResolve ();
+
+          } else { // It closed unexpectedly
+
+            onReject ( 'Process exited unexpectedly' );
+
+          }
+
+          onDone ();
+
+        };
+
+        const onStdout = ( data: string ): void => {
+
+          stdout.push ( data );
+
+          if ( stdout.endsWith ( this.idMarker ) ) { // Stdout ended
+
+            stdoutEnded = true;
+
+            onReturn ();
+
+          }
+
+        };
+
+        const onStderr = ( data: string ): void => {
+
+          stderr.push ( data );
+
+          if ( stderr.endsWith ( this.idMarker ) ) { // Stderr ended
+
+            stderrEnded = true;
+
+            onReturn ();
+
+          }
+
+        };
+
+        const onReturn = (): void => {
+
+          if ( !isPending () ) return;
+
+          if ( !stdoutEnded || !stderrEnded ) return;
+
+          try {
+
+            const stderrSlice = stderr.slice ( 0, -this.idMarker.length );
+
+            if ( stderrSlice.length ) {
+
+              onReject ( stderrSlice );
+
+            } else {
+
+              onResolve ();
 
             }
 
-            const output = content.slice ( 0, - termination.length );
-            const result = noOutput ? [] : ( noParse ? output : ( output ? JSON.parse ( output ) : [] ) );
+          } catch ( error: unknown ) {
+
+            onReject ( error );
+
+          } finally {
+
+            onDone ();
+
+          }
+
+        };
+
+        const onResolve = (): void => {
+
+          if ( !isPending () ) return;
+
+          try {
+
+            const output = stdout.slice ( 0, -this.idMarker.length );
+            const result = noOutput || !output.length ? [] : ( noParse ? output : JSON.parse ( output ) );
 
             resolve ( result );
 
           } catch ( error: unknown ) {
 
-            reject ( castError ( error ) );
+            onReject ( error );
 
           }
+
+        };
+
+        const onReject = ( error: unknown ): void => {
+
+          if ( !isPending () ) return;
+
+          reject ( castError ( error ) );
+
+        };
+
+        const onDone = (): void => {
+
+          onUnlisten ();
 
           done ();
 
         };
 
-        const onError = ( data: string ): void => {
-
-          this.process.stderr.off ( 'data', onError );
-
-          const error = new Error ( data );
-
-          reject ( error );
-
-        };
-
-        this.process.stdout.on ( 'data', onData );
-        this.process.stderr.on ( 'data', onError );
-
-        this.process.stdin.write ( `.output '${this.outputPath}'\n` ); // Setting output to the output file, to bypass Node's slow-ass streams
-        this.process.stdin.write ( `${query}\n;\n` ); // Executing the actual query
-        this.process.stdin.write ( `SELECT '${this.id}' AS _;\n` ); // Executing the termination query, to make sure the actual query terminated
-        this.process.stdin.write ( `.output\n` ); // Setting output to stdout, to get notified
-        this.process.stdin.write ( `SELECT 1;\n` ); // Executing a dummy query, to get notified
+        onListen ();
+        onQuery ();
 
       });
 

@@ -3,6 +3,8 @@
 
 import {describe} from 'fava';
 import fs from 'node:fs';
+import os from 'node:os';
+import process from 'node:process';
 import {setTimeout as delay} from 'node:timers/promises';
 import Database from '../dist/index.js';
 
@@ -22,6 +24,50 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'can re-open the connection automatically after closing', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result1 = await db.sql`SELECT 1 AS value`;
+
+    t.deepEqual ( result1, [{ value: 1 }] );
+
+    db.close ();
+
+    const result2 = await db.sql`SELECT 2 AS value`;
+
+    t.deepEqual ( result2, [{ value: 2 }] );
+
+    db.close ();
+
+    t.pass ();
+
+  });
+
+  it ( 'can re-open the connection automatically after killing', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result1 = await db.sql`SELECT 1 AS value`;
+
+    t.deepEqual ( result1, [{ value: 1 }] );
+
+    process.kill ( db.pid (), 'SIGKILL' );
+    process.kill ( db.pid (), 'SIGKILL' );
+    process.kill ( db.pid (), 'SIGKILL' );
+
+    await delay ( 100 );
+
+    const result2 = await db.sql`SELECT 2 AS value`;
+
+    t.deepEqual ( result2, [{ value: 2 }] );
+
+    db.close ();
+
+    t.pass ();
+
+  });
+
   it ( 'can create an in-disk database', async t => {
 
     const db = new Database ( 'test.db' );
@@ -34,15 +80,16 @@ describe ( 'tiny-sqlite3', it => {
     t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
 
     t.true ( fs.existsSync ( 'test.db' ) );
-    t.true ( fs.existsSync ( db.name ) );
+    t.true ( fs.existsSync ( db.path ) );
 
-    t.true ( db.open );
     t.false ( db.memory );
     t.false ( db.readonly );
+    t.false ( db.temporary );
 
     db.close ();
 
-    t.false ( db.open );
+    t.true ( fs.existsSync ( 'test.db' ) );
+    t.true ( fs.existsSync ( db.path ) );
 
     fs.rmSync ( 'test.db' );
 
@@ -59,24 +106,55 @@ describe ( 'tiny-sqlite3', it => {
 
     t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
 
-    t.true ( fs.existsSync ( db.name ) );
+    t.is ( db.path, ':memory:' );
 
-    t.true ( db.open );
     t.true ( db.memory );
     t.false ( db.readonly );
+    t.false ( db.temporary );
 
     db.close ();
 
-    t.false ( db.open );
+  });
+
+  it ( 'can create an in-temporary database', async t => {
+
+    const db = new Database ( '' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const rows = await db.sql`SELECT * FROM example LIMIT 1`;
+
+    t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
+
+    t.true ( fs.existsSync ( db.path ) );
+    t.true ( db.path.startsWith ( os.tmpdir () ) );
+
+    t.false ( db.memory );
+    t.false ( db.readonly );
+    t.true ( db.temporary );
+
+    db.close ();
+
+    t.false ( fs.existsSync ( db.path ) );
 
   });
 
   it ( 'can create a database that uses the same underlying files as another', async t => {
 
-    const db1 = new Database ( ':memory:' );
-    const db2 = new Database ( db1 );
+    const db1 = new Database ( '' );
+    const db2 = new Database ( db1.path );
 
-    t.is ( db1.name, db2.name );
+    await db1.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db1.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const rows1 = await db1.sql`SELECT * FROM example LIMIT 1`;
+    const rows2 = await db2.sql`SELECT * FROM example LIMIT 1`;
+
+    t.is ( db1.path, db2.path );
+
+    t.deepEqual ( rows1, [{ id: 1, title: 'title1', description: 'description1' }] );
+    t.deepEqual ( rows2, [{ id: 1, title: 'title1', description: 'description1' }] );
 
     db1.close ();
     db2.close ();
@@ -88,7 +166,17 @@ describe ( 'tiny-sqlite3', it => {
     const db1 = new Database ( ':memory:' );
     const db2 = new Database ( ':memory:' );
 
-    t.not ( db1.name, db2.name );
+    await db1.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db1.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    await db2.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db2.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
+
+    const rows1 = await db1.sql`SELECT * FROM example LIMIT 1`;
+    const rows2 = await db2.sql`SELECT * FROM example LIMIT 1`;
+
+    t.deepEqual ( rows1, [{ id: 1, title: 'title1', description: 'description1' }] );
+    t.deepEqual ( rows2, [{ id: 2, title: 'title2', description: 'description2' }] );
 
     db1.close ();
     db2.close ();
@@ -114,6 +202,21 @@ describe ( 'tiny-sqlite3', it => {
     backup.close ();
 
     fs.unlinkSync ( 'backup.db' );
+
+  });
+
+  it ( 'can return some infos', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const info = await db.info ();
+
+    t.is ( typeof info['database page size'], 'string' );
+
+    db.close ();
 
   });
 
@@ -219,7 +322,7 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
-  it ( 'can interpolate a uint8array', async t => {
+  it ( 'can interpolate a Uint8Array', async t => {
 
     const db = new Database ( ':memory:' );
 
@@ -247,8 +350,8 @@ describe ( 'tiny-sqlite3', it => {
 
   it ( 'can open a database in readonly mode', async t => {
 
-    const db = new Database ( ':memory:' );
-    const rodb = new Database ( db, { readonly: true } );
+    const db = new Database ( '' );
+    const rodb = new Database ( db.path, { readonly: true } );
 
     await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
     await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
@@ -262,10 +365,89 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return rodb.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
-    }, { message: 'SQLITE_ERROR: Runtime error near line 14: attempt to write a readonly database (8)\n' } );
+    }, { message: 'Runtime error near line 7: attempt to write a readonly database (8)\n' } );
 
     db.close ();
     rodb.close ();
+
+  });
+
+  it ( 'can limit the size of a database', async t => {
+
+    const db1 = new Database ( ':memory:' );
+
+    const count1 = await db1.sql`PRAGMA max_page_count`;
+
+    t.deepEqual ( count1, [{ max_page_count: 1073741823 }] );
+
+    const db2 = new Database ( ':memory:', { limit: 4096000 } );
+
+    const count2 = await db2.sql`PRAGMA max_page_count`;
+
+    t.deepEqual ( count2, [{ max_page_count: 1000 }] );
+
+    db1.close ();
+    db2.close ();
+
+  });
+
+  it ( 'can retrieve the size of the database', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const size1 = await db.size ();
+
+    t.is ( size1, 0 );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const size2 = await db.size ();
+
+    t.is ( size2, 8192 );
+
+    db.close ();
+
+  });
+
+  it ( 'can recover the contents of a database', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const sql = await db.recover ();
+
+    const expected = (
+      `BEGIN;\n` +
+      `PRAGMA writable_schema = on;\n` +
+      `PRAGMA encoding = 'UTF-8';\n` +
+      `PRAGMA page_size = '4096';\n` +
+      `PRAGMA auto_vacuum = '0';\n` +
+      `PRAGMA user_version = '0';\n` +
+      `PRAGMA application_id = '0';\n` +
+      `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT );\n` +
+      `INSERT OR IGNORE INTO 'example'('id', 'title', 'description') VALUES (1, 'title1', 'description1');\n` +
+      `PRAGMA writable_schema = off;\n` +
+      `COMMIT;\n`
+    );
+
+    t.is ( sql, expected );
+
+    db.close ();
+
+  });
+
+  it ( 'can return results as raw json', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result = await db.json`SELECT 1 AS value`;
+
+    t.is ( result, '[{"value":1}]\n' );
+
+    db.close ();
 
   });
 
@@ -283,19 +465,19 @@ describe ( 'tiny-sqlite3', it => {
 
     t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
 
-    t.true ( deserialized.memory, true );
-    t.true ( fs.existsSync ( deserialized.name ) );
+    t.true ( deserialized.temporary );
+    t.true ( fs.existsSync ( deserialized.path ) );
 
     db.close ();
     deserialized.close ();
 
-    t.false ( fs.existsSync ( deserialized.name ) );
+    t.false ( fs.existsSync ( deserialized.path ) );
 
   });
 
   it ( 'can use the "wal" journal mode', async t => {
 
-    const db = new Database ( ':memory:', { wal: true } );
+    const db = new Database ( '', { wal: true } );
 
     const rows = await db.sql`PRAGMA journal_mode`;
 
@@ -307,7 +489,7 @@ describe ( 'tiny-sqlite3', it => {
 
   it ( 'defaults to the "delete" journal mode', async t => {
 
-    const db = new Database ( ':memory:' );
+    const db = new Database ( '' );
 
     const rows = await db.sql`PRAGMA journal_mode`;
 
@@ -342,9 +524,7 @@ describe ( 'tiny-sqlite3', it => {
 
     } catch {
 
-      await delay ( 100 );
-
-      t.false ( db.open );
+      t.pass ();
 
     }
 
@@ -408,14 +588,14 @@ describe ( 'tiny-sqlite3', it => {
 
   it ( 'supports failing batches', async t => {
 
-    const db = new Database ( ':memory:' );
+    const db = new Database ( ':memory:', { bin: 'sqlite3' } );
 
     await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
 
     t.false ( db.batching );
 
-    await t.throwsAsync ( () => {
-      return db.batch ( () => {
+    await t.throwsAsync ( async () => {
+      await db.batch ( () => {
         t.true ( db.batching );
         db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
         db.sql`INSERT INTO example VALUES( ${2}, ${'title2'}, ${'description2'} )`;
@@ -423,7 +603,7 @@ describe ( 'tiny-sqlite3', it => {
         db.sql`INSERT INTO example VALUES( ${3}, ${'title3'}, ${'description3'} )`;
         t.true ( db.batching );
       });
-    }, { message: 'SQLITE_ERROR: Runtime error near line 18: UNIQUE constraint failed: example.id (19)\n' } );
+    }, { message: 'Error: near line 11: stepping, UNIQUE constraint failed: example.id (19)\n' } );
 
     t.false ( db.batching );
 
@@ -530,7 +710,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${123n} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "bigint" value' } );
+    }, { message: 'Unsupported "bigint" value' } );
 
     db.close ();
 
@@ -542,7 +722,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${{}} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "object" value' } );
+    }, { message: 'Unsupported "object" value' } );
 
     db.close ();
 
@@ -554,7 +734,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${Symbol ()} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "symbol" value' } );
+    }, { message: 'Unsupported "symbol" value' } );
 
     db.close ();
 
@@ -566,7 +746,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${[]} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "object" value' } );
+    }, { message: 'Unsupported "object" value' } );
 
     db.close ();
 
@@ -578,7 +758,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${Infinity} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "number" value' } );
+    }, { message: 'Unsupported "number" value' } );
 
     db.close ();
 
@@ -590,7 +770,7 @@ describe ( 'tiny-sqlite3', it => {
 
     await t.throwsAsync ( () => {
       return db.sql`INSERT INTO example VALUES( ${NaN} )`;
-    }, { message: 'SQLITE_ERROR: unsupported "number" value' } );
+    }, { message: 'Unsupported "number" value' } );
 
     db.close ();
 
@@ -600,10 +780,10 @@ describe ( 'tiny-sqlite3', it => {
 
     const db = new Database ( ':memory:' );
 
-    await db.batch ( () => {
-      t.throwsAsync ( () => {
+    await db.batch ( async () => {
+      await t.throwsAsync ( () => {
         return db.batch ( () => {} );
-      }, { message: 'SQLITE_ERROR: nested batches are not supported' } );
+      }, { message: 'Nested batches are not supported' } );
     });
 
     db.close ();
@@ -614,46 +794,34 @@ describe ( 'tiny-sqlite3', it => {
 
     const db = new Database ( ':memory:' );
 
-    await db.transaction ( () => {
-      t.throwsAsync ( () => {
+    await db.transaction ( async () => {
+      await t.throwsAsync ( () => {
         return db.transaction ( () => {} );
-      }, { message: 'SQLITE_ERROR: nested transactions are not supported' } );
+      }, { message: 'Nested transactions are not supported' } );
     });
 
     db.close ();
 
   });
 
-  it ( 'throws when querying after closing', async t => {
+  it ( 'unlinks the in-temporary database after close', async t => {
 
-    const db = new Database ( ':memory:' );
-
-    db.close ();
-
-    await t.throwsAsync ( () => {
-      return db.sql`SELECT 1;`;
-    }, { message: 'SQLITE_ERROR: database connection closed' } );
-
-  });
-
-  it ( 'unlinks the in-memory database after close', async t => {
-
-    const db = new Database ( ':memory:' );
+    const db = new Database ( '' );
 
     await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
     await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
 
-    t.true ( fs.existsSync ( db.name ) );
+    t.true ( fs.existsSync ( db.path ) );
 
     db.close ();
 
-    t.false ( fs.existsSync ( db.name ) );
+    t.false ( fs.existsSync ( db.path ) );
 
   });
 
-  it ( 'unlinks the in-memory database after sqlite3 exits', async t => {
+  it ( 'unlinks the in-temporary database after sqlite3 exits', async t => {
 
-    const db = new Database ( ':memory:', { args: ['-bail'] } );
+    const db = new Database ( '', { args: ['-bail'] } );
 
     try {
 
@@ -663,8 +831,7 @@ describe ( 'tiny-sqlite3', it => {
 
       await delay ( 100 );
 
-      t.false ( db.open );
-      t.false ( fs.existsSync ( db.name ) );
+      t.false ( fs.existsSync ( db.path ) );
 
     }
 

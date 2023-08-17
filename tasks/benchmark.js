@@ -9,14 +9,14 @@ import Database from '../dist/index.js';
 const benchBetter = async () => {
 
   const sqlite3 = createRequire ( import.meta.url )( 'better-sqlite3' );
-  const northwidth = sqlite3 ( './tasks/northwind.sqlite' );
+  const northwind = sqlite3 ( './tasks/northwind.sqlite' );
   const test = sqlite3 ( ':memory:' );
 
   console.time ( 'better-sqlite3' );
 
-  northwidth.prepare ( `SELECT * FROM "Order"` ).all ();
-  northwidth.prepare ( `SELECT * FROM "Product"` ).all ();
-  northwidth.prepare ( `SELECT * FROM "OrderDetail" LIMIT 10000` ).all ();
+  northwind.prepare ( `SELECT * FROM "Order"` ).all ();
+  northwind.prepare ( `SELECT * FROM "Product"` ).all ();
+  northwind.prepare ( `SELECT * FROM "OrderDetail" LIMIT 10000` ).all ();
 
   test.prepare ( `CREATE TABLE lorem (info TEXT)` ).run ();
   test.transaction ( () => {
@@ -32,7 +32,7 @@ const benchBetter = async () => {
 
   console.timeEnd ( 'better-sqlite3' );
 
-  northwidth.close ();
+  northwind.close ();
   test.close ();
 
 };
@@ -40,14 +40,14 @@ const benchBetter = async () => {
 const benchTag = async () => {
 
   const tag = createRequire ( import.meta.url )( 'sqlite-tag-spawned' );
-  const northwidth = tag ( './tasks/northwind.sqlite', { persistent: true } );
+  const northwind = tag ( './tasks/northwind.sqlite', { persistent: true } );
   const test = tag ( ':memory:', { persistent: true } );
 
   console.time ( 'sqlite-tag-spawned' );
 
-  await northwidth.all`SELECT * FROM "Order"`;
-  await northwidth.all`SELECT * FROM "Product"`;
-  await northwidth.all`SELECT * FROM "OrderDetail" LIMIT 10000`;
+  await northwind.all`SELECT * FROM "Order"`;
+  await northwind.all`SELECT * FROM "Product"`;
+  await northwind.all`SELECT * FROM "OrderDetail" LIMIT 10000`;
 
   await test.query`CREATE TABLE lorem (info TEXT)`;
   const transaction = test.transaction ();
@@ -63,21 +63,21 @@ const benchTag = async () => {
 
   console.timeEnd ( 'sqlite-tag-spawned' );
 
-  northwidth.close ();
+  northwind.close ();
   test.close ();
 
 };
 
 const benchTiny = async () => {
 
-  const northwidth = new Database ( './tasks/northwind.sqlite' );
+  const northwind = new Database ( './tasks/northwind.sqlite' );
   const test = new Database ( ':memory:' );
 
   console.time ( 'tiny-sqlite3' );
 
-  await northwidth.sql`SELECT * FROM "Order"`;
-  await northwidth.sql`SELECT * FROM "Product"`;
-  await northwidth.sql`SELECT * FROM "OrderDetail" LIMIT 10000`;
+  await northwind.sql`SELECT * FROM "Order"`;
+  await northwind.sql`SELECT * FROM "Product"`;
+  await northwind.sql`SELECT * FROM "OrderDetail" LIMIT 10000`;
 
   await test.sql`CREATE TABLE lorem (info TEXT)`;
   await test.transaction ( async () => {
@@ -95,11 +95,17 @@ const benchTiny = async () => {
 
   console.timeEnd ( 'tiny-sqlite3' );
 
-  northwidth.close ();
+  northwind.close ();
   test.close ();
 
 };
 
-await benchBetter ();
-await benchTag ();
-await benchTiny ();
+const bench = async () => {
+
+  await benchBetter ();
+  await benchTag ();
+  await benchTiny ();
+
+};
+
+bench ();

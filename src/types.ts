@@ -3,11 +3,14 @@
 
 type Callback = () => void;
 
+type Info = Record<string, string>;
+
 type Options = {
   bin?: string,
   args?: string[],
+  limit?: number, // Bytes
   readonly?: boolean,
-  timeout?: number,
+  timeout?: number, // Milliseconds
   wal?: boolean
 };
 
@@ -17,4 +20,4 @@ type Stats = Record<string, string>;
 
 /* EXPORT */
 
-export type {Callback, Options, Process, Stats};
+export type {Callback, Info, Options, Process, Stats};
