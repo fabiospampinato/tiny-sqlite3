@@ -191,11 +191,11 @@ class Executor {
 
           try {
 
-            const stderrSlice = stderr.slice ( 0, -this.idMarker.length );
+            const error = stderr.slice ( 0, -this.idMarker.length );
 
-            if ( stderrSlice.length ) {
+            if ( error.length ) {
 
-              onReject ( stderrSlice );
+              onReject ( error );
 
             } else {
 
