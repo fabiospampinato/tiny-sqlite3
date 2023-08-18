@@ -66,7 +66,7 @@ class Executor {
 
       // Quitting with patience
 
-      this.exec ( '.quit', true, true, process ).catch ( () => {
+      this.exec ( '.quit', 'null', process ).catch ( () => {
 
         // Quitting without patience
 
@@ -83,13 +83,13 @@ class Executor {
 
   }
 
-  exec <T = unknown> ( query: string, noOutput: true, noParse: true, target?: Process ): Promise<string>;
-  exec <T = unknown> ( query: string, noOutput: true, noParse?: false, target?: Process ): Promise<[]>;
-  exec <T = unknown> ( query: string, noOutput: false, noParse: true, target?: Process ): Promise<string>;
-  exec <T = unknown> ( query: string, noOutput?: false, noParse?: false, target?: Process ): Promise<T>;
-  exec <T = unknown> ( query: string, noOutput: boolean = false, noParse: boolean = false, target?: Process ): Promise<T | [] | string> {
+  exec ( query: string, mode: 'null', target?: Process ): Promise<void>;
+  exec ( query: string, mode: 'json', target?: Process ): Promise<string>;
+  exec <T = unknown> ( query: string, mode?: 'parse', target?: Process ): Promise<T | []>;
+  exec <T = unknown> ( query: string, mode: 'null' | 'json' | 'parse', target?: Process ): Promise<T | [] | string | void>;
+  exec <T = unknown> ( query: string, mode: 'null' | 'json' | 'parse' = 'parse', target?: Process ): Promise<T | [] | string> {
 
-    const {promise, resolve, reject, isPending} = makePromiseNaked<T | []> ();
+    const {promise, resolve, reject, isPending} = makePromiseNaked<any> ();
 
     this.lock = this.lock.then ( () => {
 
@@ -221,10 +221,29 @@ class Executor {
 
           try {
 
-            const output = stdout.slice ( 0, -this.idMarker.length );
-            const result = noOutput || !output.length ? [] : ( noParse ? output : JSON.parse ( output ) );
+            if ( mode === 'null' ) {
 
-            resolve ( result );
+              resolve ( undefined );
+
+            } else {
+
+              const output = stdout.slice ( 0, -this.idMarker.length );
+
+              if ( mode === 'json' ) {
+
+                resolve ( output );
+
+              } else if ( output.length ) {
+
+                resolve ( JSON.parse ( output ) );
+
+              } else {
+
+                resolve ( [] );
+
+              }
+
+            }
 
           } catch ( error: unknown ) {
 

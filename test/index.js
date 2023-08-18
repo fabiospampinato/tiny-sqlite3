@@ -481,13 +481,37 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
-  it ( 'can return results as raw json', async t => {
+  it ( 'can query manually for a raw json result', async t => {
 
     const db = new Database ( ':memory:' );
 
-    const result = await db.json`SELECT 1 AS value`;
+    const result = await db.query ( 'SELECT 1 AS value', 'json' );
 
     t.is ( result, '[{"value":1}]\n' );
+
+    db.close ();
+
+  });
+
+  it ( 'can query manually for a parsed json result', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result = await db.query ( 'SELECT 1 AS value' );
+
+    t.deepEqual ( result, [{ value: 1 }] );
+
+    db.close ();
+
+  });
+
+  it ( 'can query manually for no result', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result = await db.query ( 'SELECT 1 AS value', 'null' );
+
+    t.is ( result, undefined );
 
     db.close ();
 

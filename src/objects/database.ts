@@ -31,6 +31,8 @@ class Database {
   public batching: boolean;
   public transacting: boolean;
 
+  private bin: string;
+  private args: string[];
   private batched: string[];
   private executor: Executor;
 
@@ -38,15 +40,20 @@ class Database {
 
   constructor ( db: Uint8Array | string, options: Options = {} ) {
 
-    const bin = options.bin || getDatabaseBin ();
-    const path = getDatabasePath ( db );
-    const memory = ( db === MEMORY_DATABASE );
-    const temporary = ( db === TEMPORARY_DATABASE || isUint8Array ( db ) );
-    const args = [path];
+    this.bin = options.bin || getDatabaseBin ();
+    this.path = getDatabasePath ( db );
+    this.args = [this.path];
+    this.batched = [];
 
-    if ( !memory ) {
+    this.memory = ( db === MEMORY_DATABASE );
+    this.readonly = !!options.readonly;
+    this.temporary = ( db === TEMPORARY_DATABASE || isUint8Array ( db ) );
+    this.batching = false;
+    this.transacting = false;
 
-      ensureFileSync ( path );
+    if ( !this.memory ) {
+
+      ensureFileSync ( this.path );
 
     }
 
@@ -56,47 +63,39 @@ class Database {
       const size = options.size || ( page * PAGES_COUNT );
       const maxPageCount = Math.ceil ( size / page );
 
-      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${page}`, '-cmd', `PRAGMA max_page_count=${maxPageCount}`, '-cmd', '.output' );
+      this.args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${page}`, '-cmd', `PRAGMA max_page_count=${maxPageCount}`, '-cmd', '.output' );
 
     } else {
 
-      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', `PRAGMA max_page_count=${PAGES_COUNT}`, '-cmd', '.output' );
+      this.args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', `PRAGMA max_page_count=${PAGES_COUNT}`, '-cmd', '.output' );
 
     }
 
     if ( options.readonly ) {
 
-      args.push ( '-readonly' );
+      this.args.push ( '-readonly' );
 
     }
 
     if ( options.timeout ) {
 
-      args.push ( '-cmd', `.timeout ${options.timeout}` );
+      this.args.push ( '-cmd', `.timeout ${options.timeout}` );
 
     }
 
     if ( options.wal ) {
 
-      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', 'PRAGMA synchronous=NORMAL', '-cmd', 'PRAGMA journal_mode=WAL', '-cmd', '.output' );
+      this.args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', 'PRAGMA synchronous=NORMAL', '-cmd', 'PRAGMA journal_mode=WAL', '-cmd', '.output' );
 
     }
 
     if ( options.args ) {
 
-      args.push ( ...options.args );
+      this.args.push ( ...options.args );
 
     }
 
-    this.path = path;
-    this.memory = memory;
-    this.readonly = !!options.readonly;
-    this.temporary = temporary;
-    this.batching = false;
-    this.transacting = false;
-
-    this.batched = [];
-    this.executor = new Executor ( bin, args, this.close );
+    this.executor = new Executor ( this.bin, this.args, this.close );
 
     whenExit ( this.close );
 
@@ -104,9 +103,9 @@ class Database {
 
   /* API */
 
-  backup = async ( filePath: string ): Promise<void> => {
+  backup = ( filePath: string ): Promise<void> => {
 
-    await this.json`.backup ${filePath}`;
+    return this.query ( `.backup '${filePath}'`, 'null' );
 
   };
 
@@ -125,7 +124,7 @@ class Database {
 
         const query = this.batched.join ( '\n;\n' );
 
-        await this.executor.exec ( query, true );
+        await this.executor.exec ( query, 'null' );
 
       }
 
@@ -150,36 +149,18 @@ class Database {
 
   };
 
-  dump = async (): Promise<string> => {
+  dump = (): Promise<string> => {
 
-    return await this.json`.dump`;
+    return this.query ( '.dump', 'json' );
 
   };
 
   info = async (): Promise<Info> => {
 
-    const infoRaw = await this.json`.dbinfo`;
+    const infoRaw = await this.query ( '.dbinfo', 'json' );
     const info = Object.fromEntries ( infoRaw.split ( /\r?\n/ ).filter ( line => line ).map ( line => line.split ( ':' ).map ( key => key.trim () ) ) );
 
     return info;
-
-  };
-
-  json = ( strings: TemplateStringsArray, ...expressions: unknown[] ): Promise<string> => {
-
-    const query = Builder.build ( strings, expressions );
-
-    if ( this.batching ) {
-
-      this.batched.push ( query );
-
-      return UNRESOLVABLE;
-
-    } else {
-
-      return this.executor.exec ( query, false, true );
-
-    }
 
   };
 
@@ -189,15 +170,34 @@ class Database {
 
   };
 
+  query ( query: string, mode: 'null' ): Promise<void>;
+  query ( query: string, mode: 'json' ): Promise<string>;
+  query <T = any> ( query: string, mode?: 'parse' ): Promise<T | []>;
+  query <T = any> ( query: string, mode: 'null' | 'json' | 'parse' = 'parse' ): Promise<T | [] | string | void> {
+
+    if ( this.batching ) {
+
+      this.batched.push ( query );
+
+      return UNRESOLVABLE;
+
+    } else {
+
+      return this.executor.exec ( query, mode );
+
+    }
+
+  };
+
   raw = ( value: string ): Raw => {
 
     return new Raw ( value );
 
   };
 
-  recover = async (): Promise<string> => {
+  recover = (): Promise<string> => {
 
-    return await this.json`.recover`;
+    return this.query ( '.recover', 'json' );
 
   };
 
@@ -217,33 +217,23 @@ class Database {
 
   size = async (): Promise<number> => {
 
-    const result = await this.sql`SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()`;
+    const result = await this.query ( 'SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()' );
 
     return result[0].size;
 
   };
 
-  sql = <T = any> ( strings: TemplateStringsArray, ...expressions: unknown[] ): Promise<T> => {
+  sql = <T = any> ( strings: TemplateStringsArray, ...expressions: unknown[] ): Promise<T | []> => {
 
     const query = Builder.build ( strings, expressions );
 
-    if ( this.batching ) {
-
-      this.batched.push ( query );
-
-      return UNRESOLVABLE;
-
-    } else {
-
-      return this.executor.exec<T> ( query );
-
-    }
+    return this.query ( query );
 
   };
 
   stats = async (): Promise<Stats> => {
 
-    const statsRaw = await this.json`.stats`;
+    const statsRaw = await this.query ( '.stats', 'json' );
     const stats = Object.fromEntries ( statsRaw.split ( /\r?\n/ ).filter ( line => line ).map ( line => line.split ( ':' ).map ( key => key.trim () ) ) );
 
     return stats;
@@ -258,17 +248,17 @@ class Database {
 
       this.transacting = true;
 
-      await this.json`BEGIN TRANSACTION`;
+      await this.query ( 'BEGIN TRANSACTION', 'null' );
 
       await fn ();
 
-      await this.json`COMMIT`;
+      await this.query ( 'COMMIT', 'null' );
 
       return true;
 
     } catch {
 
-      await this.json`ROLLBACK TRANSACTION`;
+      await this.query ( 'ROLLBACK TRANSACTION', 'null' );
 
       return false;
 

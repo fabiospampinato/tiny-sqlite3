@@ -74,9 +74,12 @@ const rows2 = await db.sql`SELECT * FROM ${db.raw ( 'example' )} LIMIT ${limit}`
 
 const rawValue = raw ( 'example' );
 
-// Perform a SQL query, but get the result as plain JSON instead
+// Perform a query more manually, in various output modes
+// Note how when performing a query manually interpolated values are not escaped automatically unless you use the "sql" function
 
-const rowsJSON = await db.json`SELECT * FROM example LIMIT ${limit}`;
+const rowsParsed = await db.query ( 'SELECT * FROM example LIMIT 1' );
+const rowsJSON = await db.query ( 'SELECT * FROM example LIMIT 1', 'json' );
+const noOutput = await db.query ( 'SELECT * FROM example LIMIT 1', 'null' );
 
 // Conveniently get some information about the database, using the ".dbinfo" command
 
