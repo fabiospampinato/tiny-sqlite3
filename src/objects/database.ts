@@ -148,6 +148,12 @@ class Database {
 
   };
 
+  dump = async (): Promise<string> => {
+
+    return await this.json`.dump`;
+
+  };
+
   info = async (): Promise<Info> => {
 
     const infoRaw = await this.json`.dbinfo`;

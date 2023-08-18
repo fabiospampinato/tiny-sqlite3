@@ -410,6 +410,29 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'can dump the contents of a database', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'} )`;
+
+    const sql = await db.dump ();
+
+    const expected = (
+      `PRAGMA foreign_keys=OFF;\n` +
+      `BEGIN TRANSACTION;\n` +
+      `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT );\n` +
+      `INSERT INTO example VALUES(1,'title1','description1');\n` +
+      `COMMIT;\n`
+    );
+
+    t.is ( sql, expected );
+
+    db.close ();
+
+  });
+
   it ( 'can recover the contents of a database', async t => {
 
     const db = new Database ( ':memory:' );

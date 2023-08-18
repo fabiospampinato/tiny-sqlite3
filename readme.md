@@ -77,6 +77,10 @@ const info = await db.info ();
 
 const stats = await db.stats ();
 
+// Dump the content of a database as a SQL string, using the ".dump" command
+
+const dumped = await db.dump ();
+
 // Recover as much data as possible from a corrupted database, using the ".recover" command
 
 const recovered = await db.recover ();
