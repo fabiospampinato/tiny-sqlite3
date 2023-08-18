@@ -5,6 +5,8 @@ import once from 'function-once';
 import os from 'node:os';
 import path from 'node:path';
 import {MEMORY_DATABASE, TEMPORARY_DATABASE} from '../constants';
+import Builder from '../objects/builder';
+import Raw from '../objects/raw';
 import {getTempPath, writeFileSync} from './fs';
 import {isUint8Array} from './lang';
 
@@ -51,6 +53,18 @@ const getDatabasePath = ( db: Uint8Array | string ): string => {
 
 };
 
+const raw = ( value: string ): Raw => {
+
+  return new Raw ( value );
+
+};
+
+const sql = ( strings: TemplateStringsArray, ...expressions: unknown[] ): string => {
+
+  return Builder.build ( strings, expressions );
+
+};
+
 /* EXPORT */
 
-export {getDatabaseBin, getDatabasePath};
+export {getDatabaseBin, getDatabasePath, raw, sql};

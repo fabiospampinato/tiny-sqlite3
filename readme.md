@@ -13,7 +13,7 @@ npm install --save tiny-sqlite3
 ## Usage
 
 ```ts
-import Database from 'tiny-sqlite3';
+import Database, {raw, sql} from 'tiny-sqlite3';
 
 // Create an in-memory database
 
@@ -61,9 +61,17 @@ const deserialized = new Database ( serialized );
 const limit = 1;
 const rows = await db.sql`SELECT * FROM example LIMIT ${limit}`;
 
+// Generate a query to execute later, with the standalone "sql" function
+
+const query = sql`SELECT * FROM example LIMIT ${limit}`;
+
 // Interpolate a raw, unescaped, string in a SQL query
 
 const rows2 = await db.sql`SELECT * FROM ${db.raw ( 'example' )} LIMIT ${limit}`;
+
+// Generate a raw value to interpolate later, with the standalone "raw" function
+
+const rawValue = raw ( 'example' );
 
 // Perform a SQL query, but get the result as plain JSON instead
 
