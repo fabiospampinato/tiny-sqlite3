@@ -12,6 +12,7 @@ type Options = {
   size?: number, // Bytes
   readonly?: boolean,
   timeout?: number, // Milliseconds
+  ttl?: number, // Milliseconds
   wal?: boolean
 };
 

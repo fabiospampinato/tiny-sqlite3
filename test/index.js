@@ -633,6 +633,40 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'supports closing the process automatically after a ttl', async t => {
+
+    const db = new Database ( ':memory:', { ttl: 250 } );
+
+    const pid1 = db.pid ();
+
+    await db.sql`SELECT 1 AS value`;
+
+    const pid2 = db.pid ();
+
+    await delay ( 200 );
+
+    await db.sql`SELECT 1 AS value`;
+
+    const pid3 = db.pid ();
+
+    await delay ( 200 );
+
+    const pid4 = db.pid ();
+
+    await delay ( 200 );
+
+    const pid5 = db.pid ();
+
+    t.is ( pid1, undefined );
+    t.true ( pid2 > 0 );
+    t.is ( pid2, pid3 );
+    t.is ( pid3, pid4 );
+    t.is ( pid5, undefined );
+
+    db.close ();
+
+  });
+
   it ( 'supports empty batches', async t => {
 
     const db = new Database ( ':memory:' );

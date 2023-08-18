@@ -7,6 +7,7 @@ import makePromiseNaked from 'promise-make-naked';
 import U8 from 'uint8-encoding';
 import zeptoid from 'zeptoid';
 import {castError, isNull} from '../utils/lang';
+import Autocloser from './autocloser';
 import Rope from './rope';
 import type {Callback, Process} from '../types';
 
@@ -24,11 +25,12 @@ class Executor {
   private bin: string;
   private args: string[];
   private lock: Promise<void>;
+  private autocloser: Autocloser;
   private onClose: Callback;
 
   /* CONSTRUCTOR */
 
-  constructor ( bin: string, args: string[], onClose: Callback ) {
+  constructor ( bin: string, args: string[], ttl: number = Infinity, onClose: Callback ) {
 
     this.id = zeptoid ();
     this.idMarker = `[{"_":"${this.id}"}]\n`;
@@ -36,6 +38,7 @@ class Executor {
     this.bin = bin;
     this.args = [...args, '-cmd', '.mode json'];
     this.lock = Promise.resolve ();
+    this.autocloser = new Autocloser ( ttl, () => this.close () );
     this.onClose = onClose;
 
   }
@@ -47,6 +50,8 @@ class Executor {
     const process = this.process;
 
     if ( process && isNull ( process.exitCode ) ) return process; // Still running
+
+    this.autocloser.start ();
 
     this.process = spawn ( this.bin, this.args );
 
@@ -82,6 +87,7 @@ class Executor {
 
     this.lock = Promise.resolve ();
     this.process = undefined;
+    this.autocloser.stop ();
 
   }
 
@@ -97,6 +103,8 @@ class Executor {
     this.lock = this.lock.then ( () => {
 
       const process = target || this.open ();
+
+      this.autocloser.pause ();
 
       return new Promise ( done => {
 
@@ -271,6 +279,8 @@ class Executor {
         };
 
         const onDone = (): void => {
+
+          this.autocloser.resume ();
 
           onUnlisten ();
 

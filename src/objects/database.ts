@@ -17,7 +17,6 @@ import type {Info, Options, Stats} from '../types';
 //TODO: Support bundling, somehow
 //TODO: Support an ARM64 build for Windows (the current one is just a copy of the x86 one)
 //TODO: Support a singletone mode, where .open is used to change DB on the same process
-//TODO: Support a TTL parameter, for auto-disposing of unnecessary processes
 //TODO: Support a pooling mode, where a maximum number of processes is spawned and reused
 
 class Database {
@@ -95,7 +94,7 @@ class Database {
 
     }
 
-    this.executor = new Executor ( this.bin, this.args, this.close );
+    this.executor = new Executor ( this.bin, this.args, options.ttl, this.close );
 
     whenExit ( this.close );
 

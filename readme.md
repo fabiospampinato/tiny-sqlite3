@@ -36,6 +36,7 @@ const custom = new Database ( 'bar.db', {
   size: 1_000_000, // Maximum allowed size of the database, in bytes
   readonly: true, // Opening the database in read-only mode
   timeout: 60_000, // Maximum amount of time allowed for a query
+  ttl: 120_000, // Maximum amount of idle time to keep the underlying process alive for
   wal: true // Using the WAL journaling mode, rather than the default one
 });
 
