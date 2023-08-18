@@ -1,17 +1,21 @@
 
+/* IMPORT */
+
+import {Buffer} from 'node:buffer';
+
 /* MAIN */
 
-// This class exists just to avoid concatenating large string chunks, which if there are many of them will cause a major performance issue
+// This class exists just to avoid concatenating large string or buffer chunks, which if there are many of them will cause a major performance issue
 
 class Rope {
 
   /* VARIABLES */
 
-  private chunks: string[] = [];
+  private chunks: Buffer[] = [];
 
   /* API */
 
-  endsWith ( value: string ): boolean {
+  endsWith ( value: Uint8Array ): boolean {
 
     if ( !value.length ) return true;
 
@@ -37,7 +41,7 @@ class Rope {
 
   }
 
-  push ( chunk: string ): void {
+  push ( chunk: Buffer ): void {
 
     this.chunks.push ( chunk );
 
@@ -45,7 +49,7 @@ class Rope {
 
   slice ( start: number, end: number ): string {
 
-    return this.chunks.join ( '' ).slice ( start, end );
+    return Buffer.concat ( this.chunks ).toString ( 'utf8' ).slice ( start, end );
 
   }
 

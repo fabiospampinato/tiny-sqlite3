@@ -29,6 +29,7 @@
     "hex-encoding": "^2.0.2",
     "promise-make-naked": "^2.1.1",
     "stubborn-fs": "^1.2.5",
+    "uint8-encoding": "^2.0.0",
     "when-exit": "^2.1.1",
     "zeptoid": "^1.0.1"
   },

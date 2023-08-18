@@ -3,6 +3,7 @@
 
 import {spawn} from 'node:child_process';
 import makePromiseNaked from 'promise-make-naked';
+import U8 from 'uint8-encoding';
 import zeptoid from 'zeptoid';
 import {castError, isNull} from '../utils/lang';
 import Rope from './rope';
@@ -18,6 +19,7 @@ class Executor {
 
   private id: string;
   private idMarker: string;
+  private idMarkerBuffer: Uint8Array;
   private bin: string;
   private args: string[];
   private lock: Promise<void>;
@@ -29,6 +31,7 @@ class Executor {
 
     this.id = zeptoid ();
     this.idMarker = `[{"_":"${this.id}"}]\n`;
+    this.idMarkerBuffer = U8.encode ( this.idMarker );
     this.bin = bin;
     this.args = [...args, '-cmd', '.mode json'];
     this.lock = Promise.resolve ();
@@ -47,8 +50,6 @@ class Executor {
     this.process = spawn ( this.bin, this.args );
 
     this.process.stdin.setDefaultEncoding ( 'utf8' );
-    this.process.stderr.setEncoding ( 'utf8' );
-    this.process.stdout.setEncoding ( 'utf8' );
 
     this.process.on ( 'exit', this.onClose );
 
@@ -155,11 +156,11 @@ class Executor {
 
         };
 
-        const onStdout = ( data: string ): void => {
+        const onStdout = ( data: Buffer ): void => {
 
           stdout.push ( data );
 
-          if ( stdout.endsWith ( this.idMarker ) ) { // Stdout ended
+          if ( stdout.endsWith ( this.idMarkerBuffer ) ) { // Stdout ended
 
             stdoutEnded = true;
 
@@ -169,11 +170,11 @@ class Executor {
 
         };
 
-        const onStderr = ( data: string ): void => {
+        const onStderr = ( data: Buffer ): void => {
 
           stderr.push ( data );
 
-          if ( stderr.endsWith ( this.idMarker ) ) { // Stderr ended
+          if ( stderr.endsWith ( this.idMarkerBuffer ) ) { // Stderr ended
 
             stderrEnded = true;
 
