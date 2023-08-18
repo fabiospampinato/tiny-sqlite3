@@ -250,17 +250,17 @@ class Database {
 
       this.transacting = true;
 
-      await this.executor.exec ( 'BEGIN TRANSACTION', true );
+      await this.json`BEGIN TRANSACTION`;
 
       await fn ();
 
-      await this.executor.exec ( 'COMMIT', true );
+      await this.json`COMMIT`;
 
       return true;
 
     } catch {
 
-      await this.executor.exec ( 'ROLLBACK TRANSACTION', true );
+      await this.json`ROLLBACK TRANSACTION`;
 
       return false;
 
