@@ -25,6 +25,7 @@
     "tiny"
   ],
   "dependencies": {
+    "buffer2uint8": "^1.0.0",
     "function-once": "^3.0.0",
     "hex-encoding": "^2.0.2",
     "promise-make-naked": "^2.1.1",

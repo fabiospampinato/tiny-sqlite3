@@ -78,6 +78,7 @@ const rawValue = raw ( 'example' );
 // Note how when performing a query manually interpolated values are not escaped automatically unless you use the "sql" function
 
 const rowsParsed = await db.query ( 'SELECT * FROM example LIMIT 1' );
+const rowsBuffer = await db.query ( 'SELECT * FROM example LIMIT 1', 'buffer' );
 const rowsJSON = await db.query ( 'SELECT * FROM example LIMIT 1', 'json' );
 const noOutput = await db.query ( 'SELECT * FROM example LIMIT 1', 'null' );
 

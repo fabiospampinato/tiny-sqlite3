@@ -1,6 +1,7 @@
 
 /* IMPORT */
 
+import buffer2uint8 from 'buffer2uint8';
 import {spawn} from 'node:child_process';
 import makePromiseNaked from 'promise-make-naked';
 import U8 from 'uint8-encoding';
@@ -85,10 +86,11 @@ class Executor {
   }
 
   exec ( query: string, mode: 'null', target?: Process ): Promise<void>;
+  exec ( query: string, mode: 'buffer', target?: Process ): Promise<Uint8Array>;
   exec ( query: string, mode: 'json', target?: Process ): Promise<string>;
   exec <T = unknown> ( query: string, mode?: 'parse', target?: Process ): Promise<T | []>;
-  exec <T = unknown> ( query: string, mode: 'null' | 'json' | 'parse', target?: Process ): Promise<T | [] | string | void>;
-  exec <T = unknown> ( query: string, mode: 'null' | 'json' | 'parse' = 'parse', target?: Process ): Promise<T | [] | string> {
+  exec <T = unknown> ( query: string, mode: 'null' | 'buffer' | 'json' | 'parse', target?: Process ): Promise<T | [] | Uint8Array | string | void>;
+  exec <T = unknown> ( query: string, mode: 'null' | 'buffer' | 'json' | 'parse' = 'parse', target?: Process ): Promise<T | [] | Uint8Array | string | void> {
 
     const {promise, resolve, reject, isPending} = makePromiseNaked<any> ();
 
@@ -192,7 +194,7 @@ class Executor {
 
           try {
 
-            const error = stderr.slice ( 0, -this.idMarker.length );
+            const error = stderr.toString ().slice ( 0, -this.idMarker.length );
 
             if ( error.length ) {
 
@@ -226,9 +228,15 @@ class Executor {
 
               resolve ( undefined );
 
+            } else if ( mode === 'buffer' ) {
+
+              const buffer = buffer2uint8 ( stdout.concat ().subarray ( 0, -this.idMarkerBuffer.length ) );
+
+              resolve ( buffer );
+
             } else {
 
-              const output = stdout.slice ( 0, -this.idMarker.length );
+              const output = stdout.toString ().slice ( 0, -this.idMarker.length );
 
               if ( mode === 'json' ) {
 

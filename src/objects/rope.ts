@@ -15,6 +15,12 @@ class Rope {
 
   /* API */
 
+  concat (): Buffer {
+
+    return Buffer.concat ( this.chunks );
+
+  }
+
   endsWith ( value: Uint8Array ): boolean {
 
     if ( !value.length ) return true;
@@ -47,9 +53,9 @@ class Rope {
 
   }
 
-  slice ( start: number, end: number ): string {
+  toString (): string {
 
-    return Buffer.concat ( this.chunks ).toString ( 'utf8' ).slice ( start, end );
+    return this.concat ().toString ( 'utf8' );
 
   }
 

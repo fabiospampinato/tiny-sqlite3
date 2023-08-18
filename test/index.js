@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import process from 'node:process';
 import {setTimeout as delay} from 'node:timers/promises';
+import U8 from 'uint8-encoding';
 import Database from '../dist/index.js';
 
 /* MAIN */
@@ -476,6 +477,18 @@ describe ( 'tiny-sqlite3', it => {
     );
 
     t.is ( sql, expected );
+
+    db.close ();
+
+  });
+
+  it ( 'can query manually for a raw Uint8Array result', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    const result = await db.query ( 'SELECT 1 AS value', 'buffer' );
+
+    t.deepEqual ( result, U8.encode ( '[{"value":1}]\n' ) );
 
     db.close ();
 

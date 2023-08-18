@@ -171,9 +171,10 @@ class Database {
   };
 
   query ( query: string, mode: 'null' ): Promise<void>;
+  query ( query: string, mode: 'buffer' ): Promise<Uint8Array>;
   query ( query: string, mode: 'json' ): Promise<string>;
   query <T = any> ( query: string, mode?: 'parse' ): Promise<T | []>;
-  query <T = any> ( query: string, mode: 'null' | 'json' | 'parse' = 'parse' ): Promise<T | [] | string | void> {
+  query <T = any> ( query: string, mode: 'null' | 'buffer' | 'json' | 'parse' = 'parse' ): Promise<T | [] | Uint8Array | string | void> {
 
     if ( this.batching ) {
 
