@@ -2,7 +2,7 @@
 /* IMPORT */
 
 import whenExit from 'when-exit';
-import {MEMORY_DATABASE, TEMPORARY_DATABASE, NULL_PATH, PAGE_SIZE, UNRESOLVABLE} from '../constants';
+import {MEMORY_DATABASE, TEMPORARY_DATABASE, NULL_PATH, PAGE_SIZE, PAGES_COUNT, UNRESOLVABLE} from '../constants';
 import {getDatabaseBin, getDatabasePath} from '../utils/database';
 import {ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, getTempPath, readFile} from '../utils/fs';
 import {isUint8Array} from '../utils/lang';
@@ -50,15 +50,17 @@ class Database {
 
     }
 
-    if ( options.limit ) {
+    if ( options.page || options.size ) {
 
-      const maxPageCount = Math.ceil ( options.limit / PAGE_SIZE );
+      const page = options.page || PAGE_SIZE;
+      const size = options.size || ( page * PAGES_COUNT );
+      const maxPageCount = Math.ceil ( size / page );
 
-      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', `PRAGMA max_page_count=${maxPageCount}`, '-cmd', '.output' );
+      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${page}`, '-cmd', `PRAGMA max_page_count=${maxPageCount}`, '-cmd', '.output' );
 
     } else {
 
-      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', '.output' );
+      args.push ( '-cmd', `.output ${NULL_PATH}`, '-cmd', `PRAGMA page_size=${PAGE_SIZE}`, '-cmd', `PRAGMA max_page_count=${PAGES_COUNT}`, '-cmd', '.output' );
 
     }
 

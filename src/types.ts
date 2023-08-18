@@ -8,7 +8,8 @@ type Info = Record<string, string>;
 type Options = {
   bin?: string,
   args?: string[],
-  limit?: number, // Bytes
+  page?: number, // Bytes
+  size?: number, // Bytes
   readonly?: boolean,
   timeout?: number, // Milliseconds
   wal?: boolean

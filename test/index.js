@@ -372,6 +372,25 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'can set the size of a page', async t => {
+
+    const db1 = new Database ( ':memory:' );
+
+    const count1 = await db1.sql`PRAGMA page_size`;
+
+    t.deepEqual ( count1, [{ page_size: 4096 }] );
+
+    const db2 = new Database ( ':memory:', { page: 8192 } );
+
+    const count2 = await db2.sql`PRAGMA page_size`;
+
+    t.deepEqual ( count2, [{ page_size: 8192 }] );
+
+    db1.close ();
+    db2.close ();
+
+  });
+
   it ( 'can limit the size of a database', async t => {
 
     const db1 = new Database ( ':memory:' );
@@ -380,7 +399,7 @@ describe ( 'tiny-sqlite3', it => {
 
     t.deepEqual ( count1, [{ max_page_count: 1073741823 }] );
 
-    const db2 = new Database ( ':memory:', { limit: 4096000 } );
+    const db2 = new Database ( ':memory:', { size: 4096000 } );
 
     const count2 = await db2.sql`PRAGMA max_page_count`;
 

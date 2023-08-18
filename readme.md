@@ -32,7 +32,8 @@ const temp = new Database ( '' );
 const custom = new Database ( 'bar.db', {
   bin: 'sqlite3', // Path to the sqlite3 binary to use
   args: ['-bail'], // Extra arguments to use when creating a database
-  limit: 1_000_000, // Maximum allowed size of the database, in bytes
+  page: 16_384, // Custom page size
+  size: 1_000_000, // Maximum allowed size of the database, in bytes
   readonly: true, // Opening the database in read-only mode
   timeout: 60_000, // Maximum amount of time allowed for a query
   wal: true // Using the WAL journaling mode, rather than the default one
