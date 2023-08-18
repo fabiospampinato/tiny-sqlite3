@@ -541,6 +541,30 @@ describe ( 'tiny-sqlite3', it => {
 
   });
 
+  it ( 'can shrink a database by vacuuming freed pages', async t => {
+
+    const db = new Database ( ':memory:' );
+
+    await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
+    await db.sql`INSERT INTO example VALUES( ${1}, ${'title1'}, ${'description1'.repeat ( 10_000 )} )`;
+
+    const size1 = await db.size ();
+
+    await db.sql`DELETE FROM example WHERE id=${1}`;
+
+    const size2 = await db.size ();
+
+    await db.vacuum ();
+
+    const size3 = await db.size ();
+
+    t.is ( size1, size2 );
+    t.true ( size3 < size2 );
+
+    db.close ();
+
+  });
+
   it ( 'can use the "wal" journal mode', async t => {
 
     const db = new Database ( '', { wal: true } );

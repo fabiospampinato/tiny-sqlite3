@@ -270,6 +270,12 @@ class Database {
 
   };
 
+  vacuum = (): Promise<void> => {
+
+    return this.query ( 'VACUUM', 'null' );
+
+  };
+
 }
 
 /* EXPORT */

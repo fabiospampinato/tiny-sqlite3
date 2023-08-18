@@ -105,6 +105,10 @@ const pid = db.pid ();
 
 const size = await db.size ();
 
+// Vacuum the database, shrinking its size by reducing fragmentation caused by deleted pages
+
+await db.vacuum ();
+
 // Start a batch, which will cause all queries to be executed as one, their output won't be available
 
 await db.sql`CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )`;
