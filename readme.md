@@ -1,6 +1,6 @@
 # Tiny SQLite3
 
-A tiny cross-platform client for SQLite3, with [precompiled binaries](https://github.com/fabiospampinato/sqlite-binaries) as the only third-party dependencies.
+A tiny cross-platform client for SQLite3, with [precompiled binaries](https://github.com/fabiospampinato/sqlite3-binaries) as the only third-party dependencies.
 
 A nice feature about this library is that queries are processed in another process by SQLite3, so actually the main thread stays idle and able to perform work almost for the entire time, while `better-sqlite3` blocks.
 
