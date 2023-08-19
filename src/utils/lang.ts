@@ -11,6 +11,12 @@ const castError = ( exception: unknown ): Error => {
 
 };
 
+const isArrayBuffer = ( value: unknown ): value is ArrayBuffer => {
+
+  return value instanceof ArrayBuffer;
+
+};
+
 const isBoolean = ( value: unknown ): value is boolean => {
 
   return typeof value === 'boolean';
@@ -67,4 +73,4 @@ const isUint8Array = ( value: unknown ): value is Uint8Array => {
 
 /* EXPORT */
 
-export {castError, isBoolean, isDate, isError, isFinite, isNil, isNull, isNumber, isString, isUint8Array};
+export {castError, isArrayBuffer, isBoolean, isDate, isError, isFinite, isNil, isNull, isNumber, isString, isUint8Array};

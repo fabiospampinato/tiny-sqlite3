@@ -2,7 +2,7 @@
 /* IMPORT */
 
 import Hex from 'hex-encoding';
-import {isBoolean, isDate, isFinite, isNil, isNumber, isString, isUint8Array} from '../utils/lang';
+import {isArrayBuffer, isBoolean, isDate, isFinite, isNil, isNumber, isString, isUint8Array} from '../utils/lang';
 import Raw from './raw';
 
 /* MAIN */
@@ -61,6 +61,12 @@ const Builder = {
     if ( isDate ( value ) ) {
 
       return `'${value.toISOString ()}'`;
+
+    }
+
+    if ( isArrayBuffer ( value ) ) {
+
+      return `x'${Hex.encode ( new Uint8Array ( value ) )}'`;
 
     }
 
