@@ -1,7 +1,7 @@
 {
   "name": "tiny-sqlite3",
   "repository": "github:fabiospampinato/tiny-sqlite3",
-  "description": "A tiny cross-platform client for SQLite3, with precompiled binaries as the only third-party dependencies",
+  "description": "A tiny Node client for SQLite3, based on WASM",
   "version": "1.2.0",
   "type": "module",
   "main": "dist/index.js",
@@ -10,9 +10,13 @@
   "scripts": {
     "benchmark": "tsex benchmark",
     "benchmark:watch": "tsex benchmark --watch",
+    "blob": "tsex task --name blob",
+    "blob:watch": "tsex task --name blob --watch",
     "clean": "tsex clean",
     "compile": "tsex compile",
     "compile:watch": "tsex compile --watch",
+    "memory": "tsex task --name memory",
+    "memory:watch": "tsex task --name memory --watch",
     "northwind": "bash tasks/northwind.sh",
     "test": "tsex test",
     "test:watch": "tsex test --watch",
@@ -20,25 +24,19 @@
   },
   "keywords": [
     "sqlite3",
-    "native",
-    "cross-platform",
+    "wasm",
+    "node",
     "tiny"
   ],
   "dependencies": {
-    "buffer2uint8": "^1.0.0",
-    "function-once": "^3.0.0",
-    "hex-encoding": "^2.0.2",
-    "promise-make-naked": "^2.1.1",
+    "node-deno-sqlite": "^1.0.0",
     "stubborn-fs": "^1.2.5",
-    "uint8-encoding": "^2.0.0",
     "when-exit": "^2.1.1",
     "zeptoid": "^1.0.1"
   },
   "devDependencies": {
-    "@types/node": "^20.5.0",
-    "better-sqlite3": "^8.5.1",
-    "fava": "^0.2.1",
-    "sqlite-tag-spawned": "^0.6.0",
+    "@types/node": "^20.5.3",
+    "fava": "^0.3.0",
     "tsex": "^3.0.1",
     "typescript": "^5.1.6"
   }

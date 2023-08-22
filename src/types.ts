@@ -1,25 +1,28 @@
 
 /* MAIN */
 
-type Callback = () => void;
+type Disposer = {
+  (): void
+};
 
-type Info = Record<string, string>;
-
-type Options = {
-  bin?: string,
-  args?: string[],
+type DatabaseOptions = {
   page?: number, // Bytes
-  size?: number, // Bytes
   readonly?: boolean,
-  timeout?: number, // Milliseconds
-  ttl?: number, // Milliseconds
+  size?: number, // Bytes
   wal?: boolean
 };
 
-type Process = import ( 'node:child_process' ).ChildProcessWithoutNullStreams;
+type FunctionOptions = {
+  deterministic?: boolean
+};
 
-type Stats = Record<string, string>;
+type Meta = {
+  autoCommit: boolean,
+  changes: number,
+  lastInsertRowId: number,
+  totalChanges: number
+};
 
 /* EXPORT */
 
-export type {Callback, Info, Options, Process, Stats};
+export type {Disposer, DatabaseOptions, FunctionOptions, Meta};

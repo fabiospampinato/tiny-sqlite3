@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'stubborn-fs';
 import zeptoid from 'zeptoid';
+import {MEMORY_DATABASE, TEMPORARY_DATABASE} from './constants';
 
 /* MAIN */
 
@@ -23,12 +24,6 @@ const ensureFileSync = ( filePath: string ): void => {
 
 };
 
-const ensureFileUnlink = ( filePath: string ): Promise<void> => {
-
-  return fs.attempt.unlink ( filePath );
-
-};
-
 const ensureFileUnlinkSync = ( filePath: string ): void => {
 
   return fs.attempt.unlinkSync ( filePath );
@@ -41,24 +36,37 @@ const ensureFolderSync = ( folderPath: string ): void => {
 
 };
 
+const getDatabasePath = ( db: Uint8Array | string ): string => {
+
+  if ( db === MEMORY_DATABASE ) {
+
+    return db;
+
+  } else if ( db === TEMPORARY_DATABASE || isUint8Array ( db ) ) {
+
+    return getTempPath ();
+
+  } else {
+
+    return path.resolve ( db );
+
+  }
+
+};
+
 const getTempPath = (): string => {
 
-  return path.join ( os.tmpdir (), zeptoid () );
+  const tempPath = path.join ( os.tmpdir (), `sqlite-${zeptoid ()}.db` );
+
+  ensureFileSync ( tempPath );
+
+  return tempPath;
 
 };
 
-const readFile = async ( filePath: string ): Promise<Uint8Array> => {
+const isUint8Array = ( value: unknown ): value is Uint8Array => {
 
-  const buffer = await fs.retry.readFile ( 5000 )( filePath );
-  const uint8 = new Uint8Array ( buffer, buffer.byteOffset, buffer.byteLength );
-
-  return uint8;
-
-};
-
-const writeFile = async ( filePath: string, content: Uint8Array | string ): Promise<void> => {
-
-  return fs.retry.writeFile ( 5000 )( filePath, content );
+  return value instanceof Uint8Array;
 
 };
 
@@ -70,4 +78,4 @@ const writeFileSync = ( filePath: string, content: Uint8Array | string ): void =
 
 /* EXPORT */
 
-export {ensureFileSync, ensureFileUnlink, ensureFileUnlinkSync, ensureFolderSync, getTempPath, readFile, writeFile, writeFileSync};
+export {ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, getDatabasePath, getTempPath, isUint8Array, writeFileSync};
