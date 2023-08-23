@@ -208,7 +208,7 @@ describe ( 'tiny-sqlite3', () => {
 
       const count1 = db1.query ( `PRAGMA page_size` );
 
-      t.deepEqual ( count1, [{ page_size: 4096 }] );
+      t.deepEqual ( count1, [{ page_size: 16384 }] );
 
       const db2 = new Database ( ':memory:', { page: 8192 } );
 
@@ -229,7 +229,7 @@ describe ( 'tiny-sqlite3', () => {
 
       t.deepEqual ( count1, [{ max_page_count: 1073741823 }] );
 
-      const db2 = new Database ( ':memory:', { size: 4096000 } );
+      const db2 = new Database ( ':memory:', { size: 16384000 } );
 
       const count2 = db2.query ( `PRAGMA max_page_count` );
 
@@ -275,7 +275,7 @@ describe ( 'tiny-sqlite3', () => {
 
       const size2 = db.size;
 
-      t.is ( size2, 8192 );
+      t.is ( size2, 32768 );
 
       db.close ();
 
