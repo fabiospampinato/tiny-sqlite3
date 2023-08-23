@@ -153,6 +153,9 @@ class Database {
       const maxPageCount = Math.ceil ( size / page );
       db.exec ( `PRAGMA page_size=${page}` );
       db.exec ( `PRAGMA max_page_count=${maxPageCount}` );
+    } else {
+      db.exec ( `PRAGMA page_size=${PAGE_SIZE}` );
+      db.exec ( `PRAGMA max_page_count=${PAGES_COUNT}` );
     }
 
     if ( this.options.wal ) {
