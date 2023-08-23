@@ -13,7 +13,6 @@ import type {Callback, Dict, Disposer, DatabaseOptions, FunctionOptions, In, Out
 //TODO: ttl -> autocloser (maybe on a PooledDatabase class or something)
 //TODO: .dump
 //TODO: .recover
-//TODO: Optimize performance by tweaking pragmas
 
 class Database {
 

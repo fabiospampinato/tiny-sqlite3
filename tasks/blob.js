@@ -5,44 +5,48 @@ import Database from '../dist/index.js';
 
 /* MAIN */
 
-console.time ( 'total' );
+const db = new Database ( '', { wal: true } );
 
-for ( const path of [':memory:', ''] ) {
+db.query ( 'CREATE TABLE IF NOT EXISTS example ( id INTEGER PRIMARY KEY, data BLOB )' );
 
-  const db = new Database ( path );
+const sizes = [1_000, 10_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 25_000_000];
+const blobs = sizes.map ( size => new TextEncoder ().encode ( 'a'.repeat ( size ) ) );
 
-  for ( const size of [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 25_000_000] ) {
+console.time ( 'roundtrips' );
 
-    const BLOB = new TextEncoder ().encode ( 'a'.repeat ( size ) );
+for ( let i = 0, l = sizes.length; i < l; i++ ) {
 
-    db.query ( 'CREATE TABLE IF NOT EXISTS example ( id INTEGER PRIMARY KEY, data BLOB )' );
+  const size = sizes[i];
+  const blob = blobs[i];
 
-    console.log ( `\n[${path}]: ${size}` );
-    console.time ( 'roundtrip' );
+  console.log ( `\n[${size}]` );
+  console.time ( 'roundtrip' );
 
-    console.time ( 'write' );
-    db.query ( 'INSERT INTO example VALUES( ?, ? )', [1, BLOB] );
-    console.timeEnd ( 'write' );
+  console.time ( 'write' );
+  db.query ( 'INSERT INTO example VALUES( ?, ? )', [1, blob] );
+  console.timeEnd ( 'write' );
 
-    console.time ( 'read' );
-    db.query ( 'SELECT data FROM example WHERE id=?', [1] );
-    console.timeEnd ( 'read' );
+  console.time ( 'read' );
+  db.query ( 'SELECT data FROM example WHERE id=?', [1] );
+  db.query ( 'SELECT data FROM example WHERE id=?', [1] );
+  db.query ( 'SELECT data FROM example WHERE id=?', [1] );
+  db.query ( 'SELECT data FROM example WHERE id=?', [1] );
+  db.query ( 'SELECT data FROM example WHERE id=?', [1] );
+  console.timeEnd ( 'read' );
 
-    console.time ( 'delete' );
-    db.query ( 'DELETE FROM example WHERE id=?', [1] );
-    console.timeEnd ( 'delete' );
+  console.time ( 'delete' );
+  db.query ( 'DELETE FROM example WHERE id=?', [1] );
+  console.timeEnd ( 'delete' );
 
-    console.time ( 'vacuum' );
-    db.vacuum ();
-    console.timeEnd ( 'vacuum' );
+  console.time ( 'vacuum' );
+  db.vacuum ();
+  console.timeEnd ( 'vacuum' );
 
-    console.timeEnd ( 'roundtrip' );
-
-  }
-
-  db.close ();
+  console.timeEnd ( 'roundtrip' );
 
 }
 
-console.log ( '' );
-console.timeEnd ( 'total' );
+console.log ( '\n[total]' );
+console.timeEnd ( 'roundtrips' );
+
+db.close ();
