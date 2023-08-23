@@ -11,6 +11,7 @@ const limit = 10_000;
 console.time ( 'create' );
 for ( let i = 0; i < limit; i++ ) {
   dbs[i] = new Database ( ':memory:' );
+  dbs[i].query ( 'SELECT 1' );
 }
 console.timeEnd ( 'create' );
 

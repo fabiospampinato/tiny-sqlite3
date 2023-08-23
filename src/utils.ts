@@ -9,7 +9,7 @@ import {MEMORY_DATABASE, TEMPORARY_DATABASE} from './constants';
 
 /* MAIN */
 
-const ensureFileSync = ( filePath: string ): void => {
+const ensureFileSync = ( filePath: string, content: Uint8Array | string = '' ): void => {
 
   if ( fs.attempt.existsSync ( filePath ) ) return;
 
@@ -18,7 +18,7 @@ const ensureFileSync = ( filePath: string ): void => {
   try {
 
     ensureFolderSync ( folderPath );
-    writeFileSync ( filePath, '' );
+    writeFileSync ( filePath, content );
 
   } catch {}
 
@@ -42,9 +42,13 @@ const getDatabasePath = ( db: Uint8Array | string ): string => {
 
     return db;
 
-  } else if ( db === TEMPORARY_DATABASE || isUint8Array ( db ) ) {
+  } else if ( db === TEMPORARY_DATABASE ) {
 
     return getTempPath ();
+
+  } else if ( isUint8Array ( db ) ) {
+
+    return getTempPath ( db );
 
   } else {
 
@@ -54,11 +58,11 @@ const getDatabasePath = ( db: Uint8Array | string ): string => {
 
 };
 
-const getTempPath = (): string => {
+const getTempPath = ( content?: Uint8Array | string ): string => {
 
   const tempPath = path.join ( os.tmpdir (), `sqlite-${zeptoid ()}.db` );
 
-  ensureFileSync ( tempPath );
+  ensureFileSync ( tempPath, content );
 
   return tempPath;
 
@@ -70,6 +74,12 @@ const isUint8Array = ( value: unknown ): value is Uint8Array => {
 
 };
 
+const noop = (): void => {
+
+  return;
+
+};
+
 const writeFileSync = ( filePath: string, content: Uint8Array | string ): void => {
 
   return fs.retry.writeFileSync ( 1000 )( filePath, content );
@@ -78,4 +88,4 @@ const writeFileSync = ( filePath: string, content: Uint8Array | string ): void =
 
 /* EXPORT */
 
-export {ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, getDatabasePath, getTempPath, isUint8Array, writeFileSync};
+export {ensureFileSync, ensureFileUnlinkSync, ensureFolderSync, getDatabasePath, getTempPath, isUint8Array, noop, writeFileSync};

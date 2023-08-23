@@ -5,6 +5,8 @@ import Database from '../dist/index.js';
 
 /* MAIN */
 
+console.time ( 'total' );
+
 for ( const path of [':memory:', ''] ) {
 
   const db = new Database ( path );
@@ -41,3 +43,6 @@ for ( const path of [':memory:', ''] ) {
   db.close ();
 
 }
+
+console.log ( '' );
+console.timeEnd ( 'total' );

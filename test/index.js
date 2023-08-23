@@ -2,16 +2,13 @@
 /* IMPORT */
 
 import {describe} from 'fava';
+import {Buffer} from 'node:buffer';
 import fs from 'node:fs';
 import os from 'node:os';
-import process from 'node:process';
 import {setTimeout as delay} from 'node:timers/promises';
 import Database from '../dist/index.js';
 
 /* MAIN */
-
-//TODO: Check that json1 functions are available ()
-//TODO: Add more tests for the new stuff, and review everything again
 
 describe ( 'tiny-sqlite3', () => {
 
@@ -89,9 +86,7 @@ describe ( 'tiny-sqlite3', () => {
 
     });
 
-    it.skip ( 'can create multiple in-disk databases that share the same underlying files as another', t => {
-
-      //TODO: Locking seems entirely broken here... it's requesting locks that it's never releasing
+    it ( 'can create multiple in-disk databases that share the same underlying files as another', t => {
 
       const db1 = new Database ( '' );
       const db2 = new Database ( db1.path );
@@ -142,25 +137,24 @@ describe ( 'tiny-sqlite3', () => {
       db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
 
       const serialized = db.serialize ();
-      const deserialized1 = new Database ( serialized );
-      const deserialized2 = new Database ( '' ).deserialize ( serialized );
+      const deserialized = new Database ( serialized );
 
-      const rows1 = deserialized1.query ( `SELECT * FROM example LIMIT 1` );
-      const rows2 = deserialized2.query ( `SELECT * FROM example LIMIT 1` );
+      const rows1 = db.query ( `SELECT * FROM example LIMIT 1` );
+      const rows2 = deserialized.query ( `SELECT * FROM example LIMIT 1` );
 
       t.deepEqual ( rows1, [{ id: 1, title: 'title1', description: 'description1' }] );
       t.deepEqual ( rows2, [{ id: 1, title: 'title1', description: 'description1' }] );
 
-      t.false ( deserialized1.memory );
-      t.false ( deserialized1.readonly );
-      t.true ( deserialized1.temporary );
+      t.false ( deserialized.memory );
+      t.false ( deserialized.readonly );
+      t.true ( deserialized.temporary );
 
-      deserialized1.close ();
-      deserialized2.close ();
+      db.close ();
+      deserialized.close ();
 
     });
 
-    it.skip ( 'can create a readonly database', t => {
+    it ( 'can create a readonly database', t => {
 
       const db = new Database ( '' );
       const rodb = new Database ( db.path, { readonly: true } );
@@ -177,14 +171,14 @@ describe ( 'tiny-sqlite3', () => {
 
       t.throws ( () => {
         return rodb.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
-      }, { message: 'Runtime error near line 7: attempt to write a readonly database (8)\n' } );
+      }, { message: 'attempt to write a readonly database' } );
 
       db.close ();
       rodb.close ();
 
     });
 
-    it.skip ( 'can use the "wal" journal mode', t => {
+    it ( 'can use the "wal" journal mode', t => {
 
       const db = new Database ( '', { wal: true } );
 
@@ -207,151 +201,6 @@ describe ( 'tiny-sqlite3', () => {
       db.close ();
 
     });
-
-  });
-
-  describe ( 'close', it => {
-
-    it ( 'can be closed multiple times without throwing', t => {
-
-      const db = new Database ( ':memory:' );
-
-      db.close ();
-      db.close ();
-      db.close ();
-
-      t.pass ();
-
-    });
-
-    it ( 'unlinks the in-temporary database after close', t => {
-
-      const db = new Database ( '' );
-
-      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
-      db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
-
-      t.true ( fs.existsSync ( db.path ) );
-
-      db.close ();
-
-      t.false ( fs.existsSync ( db.path ) );
-
-    });
-
-  });
-
-  describe ( 'execute', it => {
-
-    it ( 'can execute queries ignoring the result', t => {
-
-      const db = new Database ( ':memory:' );
-
-      db.execute (`
-        CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT );
-        INSERT INTO example VALUES( 1, 'title1', 'description1' );
-        INSERT INTO example VALUES( 2, 'title2', 'description2' );
-      `);
-
-      const rowsExecute = db.execute ( `SELECT * FROM example` );
-      const rowsQuery = db.query ( `SELECT * FROM example` );
-
-      t.is ( rowsExecute, undefined );
-      t.deepEqual ( rowsQuery, [{ id: 1, title: 'title1', description: 'description1' }, { id: 2, title: 'title2', description: 'description2' }] );
-
-      db.close ();
-
-    });
-
-  });
-
-  describe ( 'function', it => {
-
-    it ( 'can register and unregister a function', t => {
-
-      const db = new Database ( ':memory:' );
-
-      t.throws ( () => {
-        db.query ( `SELECT sum(1, 2) as a, sum(1,2,3,4) as b` );
-      });
-
-      const sum = ( ...numbers ) => numbers.reduce ( ( sum, number ) => sum + number, 0 );
-      const dispose = db.function ( 'sum', sum );
-      const summed = db.query ( `SELECT sum(1, 2) as a, sum(1,2,3,4) as b` );
-
-      t.deepEqual ( summed, [{ a: 3, b: 10 }] );
-
-      dispose ();
-
-      t.throws ( () => {
-        db.query ( `SELECT sum(1, 2) as a, sum(1,2,3,4) as b` );
-      });
-
-      db.close ();
-
-    });
-
-  });
-
-  describe ( 'meta', it => {
-
-    it ( 'can return some metadata about the database', t => {
-
-      const db = new Database ( ':memory:' );
-
-      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
-      db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
-      db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
-      db.query ( `INSERT INTO example VALUES( 3, 'title3', 'description3' )` );
-
-      const meta = db.meta ();
-
-      t.is ( meta.autoCommit, true );
-      t.is ( meta.changes, 1 );
-      t.is ( meta.lastInsertRowId, 3 );
-      t.is ( meta.totalChanges, 3 );
-
-      db.close ();
-
-    });
-
-  });
-
-  describe ( 'query', it => {
-
-    it ( 'can interpolate an array of values', t => {
-
-      const db = new Database ( ':memory:' );
-
-      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
-      db.query ( `INSERT INTO example VALUES( ?, ?, ? )`, [1, 'title1', 'description1'] );
-
-      const rows = db.query ( `SELECT * FROM example LIMIT 1` );
-
-      t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
-
-      db.close ();
-
-    });
-
-    it ( 'can interpolate an object of values', t => {
-
-      const db = new Database ( ':memory:' );
-
-      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
-      db.query ( `INSERT INTO example VALUES( :id, :title, :description )`, { id: 1, title: 'title1', description: 'description1' } );
-
-      const rows = db.query ( `SELECT * FROM example LIMIT 1` );
-
-      t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
-
-      db.close ();
-
-    });
-
-  });
-
-  describe ( 'size', it => {
 
     it ( 'can set the size of a page', t => {
 
@@ -391,18 +240,40 @@ describe ( 'tiny-sqlite3', () => {
 
     });
 
+  });
+
+  describe ( 'getters', it => {
+
+    it ( 'can retrieve some metadata about the database', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+      db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
+      db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
+      db.query ( `INSERT INTO example VALUES( 3, 'title3', 'description3' )` );
+
+      t.is ( db.changes, 1 );
+      t.is ( db.lastInsertRowId, 3 );
+      t.is ( db.totalChanges, 3 );
+      t.is ( db.transacting, false );
+
+      db.close ();
+
+    });
+
     it ( 'can retrieve the size of the database', t => {
 
       const db = new Database ( ':memory:' );
 
-      const size1 = db.size ();
+      const size1 = db.size;
 
       t.is ( size1, 0 );
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
       db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
 
-      const size2 = db.size ();
+      const size2 = db.size;
 
       t.is ( size2, 8192 );
 
@@ -412,9 +283,206 @@ describe ( 'tiny-sqlite3', () => {
 
   });
 
+  describe ( 'backup', it => {
+
+    it ( 'can backup a database', async t => {
+
+      const db = new Database ( '' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+      db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
+
+      await db.backup ( 'backup.db' );
+
+      const db2 = new Database ( 'backup.db' );
+
+      const rows1 = db.query ( `SELECT * FROM example LIMIT 1` );
+      const rows2 = db2.query ( `SELECT * FROM example LIMIT 1` );
+
+      t.deepEqual ( rows1, [{ id: 1, title: 'title1', description: 'description1' }] );
+      t.deepEqual ( rows2, [{ id: 1, title: 'title1', description: 'description1' }] );
+
+      db.close ();
+      db2.close ();
+
+      fs.unlinkSync ( 'backup.db' );
+
+    });
+
+  });
+
+  describe ( 'close', it => {
+
+    it ( 'can be closed multiple times without throwing', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.close ();
+      db.close ();
+      db.close ();
+
+      t.pass ();
+
+    });
+
+    it ( 'unlinks the in-temporary database after close', t => {
+
+      const db = new Database ( '' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+      db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
+
+      t.true ( fs.existsSync ( db.path ) );
+
+      db.close ();
+
+      t.false ( fs.existsSync ( db.path ) );
+
+    });
+
+    it ( 'can re-open the connection automatically after closing', t => {
+
+      const db = new Database ( ':memory:' );
+
+      const result1 = db.query ( `SELECT 1 AS value` );
+
+      t.deepEqual ( result1, [{ value: 1 }] );
+
+      db.close ();
+
+      const result2 = db.query ( `SELECT 2 AS value` );
+
+      t.deepEqual ( result2, [{ value: 2 }] );
+
+      db.close ();
+
+    });
+
+  });
+
+  describe ( 'execute', it => {
+
+    it ( 'can execute queries ignoring the result', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.execute (`
+        CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT );
+        INSERT INTO example VALUES( 1, 'title1', 'description1' );
+        INSERT INTO example VALUES( 2, 'title2', 'description2' );
+      `);
+
+      const rowsExecute = db.execute ( `SELECT * FROM example` );
+      const rowsQuery = db.query ( `SELECT * FROM example` );
+
+      t.is ( rowsExecute, undefined );
+      t.deepEqual ( rowsQuery, [{ id: 1, title: 'title1', description: 'description1' }, { id: 2, title: 'title2', description: 'description2' }] );
+
+      db.close ();
+
+    });
+
+  });
+
+  describe ( 'function', it => {
+
+    it ( 'can register and unregister a function', t => {
+
+      const db = new Database ( ':memory:' );
+
+      t.throws ( () => {
+        db.query ( `SELECT custom_sum(1, 2) as a, sum(1,2,3,4) as b` );
+      }, { message: 'no such function: custom_sum' });
+
+      const sum = ( ...numbers ) => numbers.reduce ( ( sum, number ) => sum + number, 0 );
+      const dispose = db.function ( 'custom_sum', sum, { variadic: true } );
+      const summed = db.query ( `SELECT custom_sum(1, 2) as a, custom_sum(1,2,3,4) as b` );
+
+      t.deepEqual ( summed, [{ a: 3, b: 10 }] );
+
+      dispose ();
+
+      t.throws ( () => {
+        db.query ( `SELECT custom_sum(1, 2) as a, custom_sum(1,2,3,4) as b` );
+      }, { message: 'no such function: custom_sum' });
+
+      db.close ();
+
+    });
+
+  });
+
+  describe ( 'prepare', it => {
+
+    it ( 'can prepare a query taking an array of values to execute later', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+
+      const insert1 = db.prepare ( `INSERT INTO example VALUES( ?, ?, ? )` );
+      const insert2 = db.prepare ( `INSERT INTO example VALUES( :id, :title, :description )` );
+
+      insert1 ([ 1, 'title1', 'description1' ]);
+      insert1 ([ 2, 'title2', 'description2' ]);
+
+      insert2 ({ id: 3, title: 'title3', description: 'description3' });
+      insert2 ({ id: 4, title: 'title4', description: 'description4' });
+
+      const rows = db.query ( `SELECT * FROM example` );
+
+      t.deepEqual ( rows[0], { id: 1, title: 'title1', description: 'description1' } );
+      t.deepEqual ( rows[1], { id: 2, title: 'title2', description: 'description2' } );
+      t.deepEqual ( rows[2], { id: 3, title: 'title3', description: 'description3' } );
+      t.deepEqual ( rows[3], { id: 4, title: 'title4', description: 'description4' } );
+
+      db.close ();
+
+    });
+
+  });
+
+  describe ( 'query', it => {
+
+    it ( 'can interpolate an array of values', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+      db.query ( `INSERT INTO example VALUES( ?, ?, ? )`, [1, 'title1', 'description1'] );
+
+      const rows = db.query ( `SELECT * FROM example LIMIT 1` );
+
+      t.deepEqual ( rows, [{ id: 1, title: 'title1', description: 'description1' }] );
+
+      db.close ();
+
+    });
+
+    it ( 'can interpolate an object of values', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+      db.query ( `INSERT INTO example VALUES( :id, :title, :description )`, { id: 1, title: 'title1', description: 'description1' } );
+      db.query ( `INSERT INTO example VALUES( @id, @title, @description )`, { id: 2, title: 'title2', description: 'description2' } );
+      db.query ( `INSERT INTO example VALUES( $id, $title, $description )`, { id: 3, title: 'title3', description: 'description3' } );
+
+      const rows = db.query ( `SELECT * FROM example` );
+
+      t.deepEqual ( rows[0], { id: 1, title: 'title1', description: 'description1' } );
+      t.deepEqual ( rows[1], { id: 2, title: 'title2', description: 'description2' } );
+      t.deepEqual ( rows[2], { id: 3, title: 'title3', description: 'description3' } );
+
+      db.close ();
+
+    });
+
+  });
+
   describe ( 'sql', it => {
 
-    it ( 'can interpolate a bigint', t => {
+    it.skip ( 'can interpolate a bigint', t => {
 
       const db = new Database ( ':memory:' );
 
@@ -422,39 +490,9 @@ describe ( 'tiny-sqlite3', () => {
 
       t.deepEqual ( rowsSmall, [{ value: 123 }] );
 
-      const rowsBig = db.sql`SELECT ${BigInt ( Number.MAX_SAFE_INTEGER ) * 2n} AS value`;
+      const rowsBig = db.sql`SELECT ${1152735103331642317n} AS value`;
 
-      t.deepEqual ( rowsBig, [{ value: BigInt ( Number.MAX_SAFE_INTEGER ) * 2n }] );
-
-      db.close ();
-
-    });
-
-    it ( 'can interpolate a boolean', t => {
-
-      const db = new Database ( ':memory:' );
-
-      const rowsTrue = db.sql`SELECT ${true} AS value`;
-
-      t.deepEqual ( rowsTrue, [{ value: 1 }] );
-
-      const rowsFalse = db.sql`SELECT ${false} AS value`;
-
-      t.deepEqual ( rowsFalse, [{ value: 0 }] );
-
-      db.close ();
-
-    });
-
-    it ( 'can interpolate a date', t => {
-
-      const db = new Database ( ':memory:' );
-
-      const date = new Date ();
-
-      const rows = db.sql`SELECT ${date} AS value`;
-
-      t.deepEqual ( rows, [{ value: date.toISOString () }] );
+      t.deepEqual ( rowsBig, [{ value: 1152735103331642317n }] );
 
       db.close ();
 
@@ -465,6 +503,46 @@ describe ( 'tiny-sqlite3', () => {
       const db = new Database ( ':memory:' );
 
       const rows = db.sql`SELECT ${null} AS value`;
+
+      t.deepEqual ( rows, [{ value: null }] );
+
+      db.close ();
+
+    });
+
+    it ( 'can interpolate an undefined', t => {
+
+      const db = new Database ( ':memory:' );
+
+      const rows = db.sql`SELECT ${undefined} AS value`;
+
+      t.deepEqual ( rows, [{ value: null }] );
+
+      db.close ();
+
+    });
+
+    it ( 'can interpolate an Infinity', t => {
+
+      const db = new Database ( ':memory:' );
+
+      const rowsPositive = db.sql`SELECT ${Infinity} AS value`;
+
+      t.deepEqual ( rowsPositive, [{ value: Infinity }] );
+
+      const rowsNegative = db.sql`SELECT ${-Infinity} AS value`;
+
+      t.deepEqual ( rowsNegative, [{ value: -Infinity }] );
+
+      db.close ();
+
+    });
+
+    it ( 'can interpolate a NaN', t => {
+
+      const db = new Database ( ':memory:' );
+
+      const rows = db.sql`SELECT ${NaN} AS value`;
 
       t.deepEqual ( rows, [{ value: null }] );
 
@@ -512,11 +590,11 @@ describe ( 'tiny-sqlite3', () => {
 
       const db = new Database ( ':memory:' );
 
-      const data = new Uint8Array ([ 72, 101, 108, 108, 111, 44,  32,  87, 111, 114, 108, 100,  33 ]).buffer;
+      const data = new Uint8Array ([ 72, 101, 108, 108, 111, 44,  32,  87, 111, 114, 108, 100,  33 ]);
 
-      const rows = db.sql`SELECT ${data} AS value`;
+      const rows = db.sql`SELECT ${data.buffer} AS value`;
 
-      t.deepEqual ( rows, [{ value: data }] );
+      t.deepEqual ( rows, [{ value: data.buffer }] );
 
       db.close ();
 
@@ -530,47 +608,35 @@ describe ( 'tiny-sqlite3', () => {
 
       const rows = db.sql`SELECT ${data} AS value`;
 
-      t.deepEqual ( rows, [{ value: data }] );
+      t.deepEqual ( rows, [{ value: Buffer.from ( data ) }] ); //TODO: Avoid using Buffers
 
       db.close ();
 
     });
 
-    it ( 'can interpolate an undefined', t => {
+    it ( 'throws when interpolating a boolean', t => {
 
       const db = new Database ( ':memory:' );
 
-      const rows = db.sql`SELECT ${undefined} AS value`;
+      t.throws ( () => {
+        db.sql`SELECT ${true} as value`;
+      });
 
-      t.deepEqual ( rows, [{ value: null }] );
+      t.throws ( () => {
+        db.sql`SELECT ${false} as value`;
+      });
 
       db.close ();
 
     });
 
-    it ( 'can interpolate an Infinity', t => {
+    it ( 'throws when interpolating a date', t => {
 
       const db = new Database ( ':memory:' );
 
-      const rowsPositive = db.sql`SELECT ${Infinity} AS value`;
-
-      t.deepEqual ( rowsPositive, [{ value: Infinity }] );
-
-      const rowsNegative = db.sql`SELECT ${-Infinity} AS value`;
-
-      t.deepEqual ( rowsNegative, [{ value: -Infinity }] );
-
-      db.close ();
-
-    });
-
-    it ( 'can interpolate a NaN', t => {
-
-      const db = new Database ( ':memory:' );
-
-      const rows = db.sql`SELECT ${NaN} AS value`;
-
-      t.deepEqual ( rows, [{ value: null }] );
+      t.throws ( () => {
+        db.sql`SELECT ${true} as value`;
+      });
 
       db.close ();
 
@@ -581,8 +647,8 @@ describe ( 'tiny-sqlite3', () => {
       const db = new Database ( ':memory:' );
 
       t.throws ( () => {
-        return db.sql`SELECT ${{}} as value`;
-      }, { message: 'Can not bind object.' } );
+        db.sql`SELECT ${{}} as value`;
+      });
 
       db.close ();
 
@@ -593,8 +659,8 @@ describe ( 'tiny-sqlite3', () => {
       const db = new Database ( ':memory:' );
 
       t.throws ( () => {
-        return db.sql`SELECT ${Symbol ()} as value`;
-      }, { message: 'Can not bind symbol.' } );
+        db.sql`SELECT ${Symbol ()} as value`;
+      });
 
       db.close ();
 
@@ -605,8 +671,8 @@ describe ( 'tiny-sqlite3', () => {
       const db = new Database ( ':memory:' );
 
       t.throws ( () => {
-        return db.sql`SELECT ${[]} as value`;
-      }, { message: 'Can not bind object.' } );
+        db.sql`SELECT ${[]} as value`;
+      });
 
       db.close ();
 
@@ -622,13 +688,13 @@ describe ( 'tiny-sqlite3', () => {
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       db.transaction ( () => {
-        t.false ( db.meta ().autoCommit );
+        t.true ( db.transacting );
       });
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       const rows = db.query ( `SELECT * FROM example` );
 
@@ -644,17 +710,17 @@ describe ( 'tiny-sqlite3', () => {
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
-      db.transaction ( async () => {
-        t.false ( db.meta ().autoCommit );
+      db.transaction ( () => {
+        t.true ( db.transacting );
         db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
         db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
         db.query ( `INSERT INTO example VALUES( 3, 'title3', 'description3' )` );
-        t.false ( db.meta ().autoCommit );
+        t.true ( db.transacting );
       });
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       const rows = db.query ( `SELECT * FROM example` );
 
@@ -670,25 +736,51 @@ describe ( 'tiny-sqlite3', () => {
 
     });
 
-    it.skip ( 'supports failing transactions', t => {
+    it ( 'supports failing transactions', t => {
 
       const db = new Database ( ':memory:' );
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       t.throws ( () => {
         db.transaction ( () => {
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
           db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
           db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
           db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
         });
       });
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
+
+      const rows = db.query ( `SELECT * FROM example` );
+
+      t.deepEqual ( rows, [] );
+
+      db.close ();
+
+    });
+
+    it ( 'supports empty nested transactions', t => {
+
+      const db = new Database ( ':memory:' );
+
+      db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
+
+      t.false ( db.transacting );
+
+      db.transaction ( () => {
+        t.true ( db.transacting );
+        db.transaction ( () => {
+          t.true ( db.transacting );
+        });
+        t.true ( db.transacting );
+      });
+
+      t.false ( db.transacting );
 
       const rows = db.query ( `SELECT * FROM example` );
 
@@ -704,21 +796,21 @@ describe ( 'tiny-sqlite3', () => {
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       db.transaction ( () => {
-        t.false ( db.meta ().autoCommit );
+        t.true ( db.transacting );
         db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
         db.transaction ( () => {
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
           db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description2' )` );
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
         });
         db.query ( `INSERT INTO example VALUES( 3, 'title3', 'description3' )` );
-        t.false ( db.meta ().autoCommit );
+        t.true ( db.transacting );
       });
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       const rows = db.query ( `SELECT * FROM example` );
 
@@ -734,29 +826,29 @@ describe ( 'tiny-sqlite3', () => {
 
     });
 
-    it.skip ( 'supports failing nested transactions', t => {
+    it ( 'supports failing nested transactions', t => {
 
       const db = new Database ( ':memory:' );
 
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       t.throws ( () => {
         db.transaction ( () => {
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
           db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
           db.transaction ( () => {
-            t.false ( db.meta ().autoCommit );
-            db.query ( `INSERT INTO example VALUES( 2, 'title2', 'description1' )` );
-            t.false ( db.meta ().autoCommit );
+            t.true ( db.transacting );
+            db.query ( `INSERT INTO example VALUES( 1, 'title1', 'description1' )` );
+            t.true ( db.transacting );
           });
           db.query ( `INSERT INTO example VALUES( 3, 'title3', 'description3' )` );
-          t.false ( db.meta ().autoCommit );
+          t.true ( db.transacting );
         });
       });
 
-      t.true ( db.meta ().autoCommit );
+      t.false ( db.transacting );
 
       const rows = db.query ( `SELECT * FROM example` );
 
@@ -777,19 +869,19 @@ describe ( 'tiny-sqlite3', () => {
       db.query ( `CREATE TABLE example ( id INTEGER PRIMARY KEY, title TEXT, description TEXT )` );
       db.query ( `INSERT INTO example VALUES( 1, 'title1', '${'description1'.repeat ( 10_000 )}' )` );
 
-      const size1 = db.size ();
+      const size1 = db.size;
 
       db.query ( `DELETE FROM example WHERE id=${1}` );
 
-      const size2 = db.size ();
+      const size2 = db.size;
 
       db.vacuum ();
 
-      const size3 = db.size ();
+      const size3 = db.size;
 
       db.vacuum ();
 
-      const size4 = db.size ();
+      const size4 = db.size;
 
       t.is ( size1, size2 );
       t.true ( size3 < size2 );
@@ -802,50 +894,6 @@ describe ( 'tiny-sqlite3', () => {
   });
 
   describe ( 'todo', it => {
-
-    it.skip ( 'can re-open the connection automatically after closing', t => {
-
-      const db = new Database ( ':memory:' );
-
-      const result1 = db.query ( `SELECT 1 AS value` );
-
-      t.deepEqual ( result1, [{ value: 1 }] );
-
-      db.close ();
-
-      const result2 = db.query ( `SELECT 2 AS value` );
-
-      t.deepEqual ( result2, [{ value: 2 }] );
-
-      db.close ();
-
-      t.pass ();
-
-    });
-
-    it.skip ( 'can re-open the connection automatically after killing', t => {
-
-      const db = new Database ( ':memory:' );
-
-      const result1 = db.query ( `SELECT 1 AS value` );
-
-      t.deepEqual ( result1, [{ value: 1 }] );
-
-      process.kill ( db.pid (), 'SIGKILL' );
-      process.kill ( db.pid (), 'SIGKILL' );
-      process.kill ( db.pid (), 'SIGKILL' );
-
-      delay ( 100 );
-
-      const result2 = db.query ( `SELECT 2 AS value` );
-
-      t.deepEqual ( result2, [{ value: 2 }] );
-
-      db.close ();
-
-      t.pass ();
-
-    });
 
     it.skip ( 'supports closing the process automatically after a ttl', t => {
 

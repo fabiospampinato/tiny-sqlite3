@@ -1,7 +1,7 @@
 {
   "name": "tiny-sqlite3",
   "repository": "github:fabiospampinato/tiny-sqlite3",
-  "description": "A tiny Node client for SQLite3, based on WASM",
+  "description": "A tiny convenience Node client for SQLite3, based on better-sqlite3",
   "version": "1.2.0",
   "type": "module",
   "main": "dist/index.js",
@@ -24,17 +24,18 @@
   },
   "keywords": [
     "sqlite3",
-    "wasm",
     "node",
     "tiny"
   ],
   "dependencies": {
-    "node-deno-sqlite": "^1.0.0",
+    "better-sqlite3": "^8.5.1",
+    "buffer2uint8": "^1.0.0",
     "stubborn-fs": "^1.2.5",
     "when-exit": "^2.1.1",
     "zeptoid": "^1.0.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.4",
     "@types/node": "^20.5.3",
     "fava": "^0.3.0",
     "tsex": "^3.0.1",

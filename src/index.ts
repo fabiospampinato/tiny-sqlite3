@@ -1,21 +1,19 @@
 
 /* IMPORT */
 
-import {DB} from 'node-deno-sqlite';
+import sqlite3 from 'better-sqlite3';
+import buffer2uint8 from 'buffer2uint8';
 import whenExit from 'when-exit';
 import {MEMORY_DATABASE, TEMPORARY_DATABASE, PAGE_SIZE, PAGES_COUNT} from './constants';
-import {getDatabasePath, isUint8Array, ensureFileSync, ensureFileUnlinkSync} from './utils';
-import type {PreparedQuery, Row, RowObject, QueryParameter, QueryParameterSet, SqlFunctionArgument, SqlFunctionResult} from 'node-deno-sqlite';
-import type {Disposer, DatabaseOptions, FunctionOptions, Meta} from './types';
+import {getDatabasePath, isUint8Array, ensureFileSync, ensureFileUnlinkSync, noop} from './utils';
+import type {Callback, Dict, Disposer, DatabaseOptions, FunctionOptions, In, Out} from './types';
 
 /* MAIN */
 
-//TODO: ttl -> autocloser
-//TODO: timeout -> abort query
+//TODO: ttl -> autocloser (maybe on a PooledDatabase class or something)
 //TODO: .dump
 //TODO: .recover
-//TODO: use workers automatically, maybe
-//TODO: prepare statement, maybe it's more convenient at times
+//TODO: Optimize performance by tweaking pragmas
 
 class Database {
 
@@ -26,8 +24,10 @@ class Database {
   public readonly: boolean;
   public temporary: boolean;
 
-  private db: DB;
-  private statements: Record<string, PreparedQuery<any, any, any>> = {};
+  private options: DatabaseOptions;
+  private sqlite3?: sqlite3.Database;
+  private statements: Record<string, ( params?: any ) => any[]> = {};
+  private exitDisposer: Disposer = noop;
 
   /* CONSTRUCTOR */
 
@@ -37,46 +37,65 @@ class Database {
     this.memory = ( path === MEMORY_DATABASE );
     this.readonly = !!options.readonly;
     this.temporary = ( path === TEMPORARY_DATABASE || isUint8Array ( path ) );
+    this.options = options;
 
-    if ( !this.memory ) {
-      ensureFileSync ( this.path );
-    }
+  }
 
-    this.db = new DB ( this.path, {
-      mode: options.readonly ? 'read' : 'write',
-      memory: this.memory
-    });
+  /* GETTERS API */
 
-    if ( options.page || options.size ) {
-      const page = options.page || PAGE_SIZE;
-      const size = options.size || ( page * PAGES_COUNT );
-      const maxPageCount = Math.ceil ( size / page );
-      this.db.execute ( `PRAGMA page_size=${page}` );
-      this.db.execute ( `PRAGMA max_page_count=${maxPageCount}` );
-    } else {
-      this.db.execute ( `PRAGMA page_size=${PAGE_SIZE}` );
-      this.db.execute ( `PRAGMA max_page_count=${PAGES_COUNT}` );
-    }
+  private get db (): sqlite3.Database {
 
-    if ( options.wal ) {
-      this.db.execute ( 'PRAGMA locking_mode=EXCLUSIVE' );
-      this.db.execute ( 'PRAGMA synchronous=NORMAL' );
-      this.db.execute ( 'PRAGMA journal_mode=WAL' );
-    }
+    return this.open ();
 
-    if ( isUint8Array ( path ) ) {
-      this.deserialize ( path );
-    }
+  }
 
-    whenExit ( () => this.close () ); //TODO: Dispose of this handler also though
+  get changes (): number {
+
+    return this.query<{ value: number }>( 'SELECT changes() as value' )[0].value;
+
+  }
+
+  get lastInsertRowId (): number {
+
+    return this.query<{ value: number }>( 'SELECT last_insert_rowid() as value' )[0].value;
+
+  }
+
+  get size (): number {
+
+    return this.query<{ value: number }>( 'SELECT page_count * page_size as value FROM pragma_page_count(), pragma_page_size()' )[0].value;
+
+  }
+
+  get totalChanges (): number {
+
+    return this.query<{ value: number }>( 'SELECT total_changes() as value' )[0].value;
+
+  }
+
+  get transacting (): boolean {
+
+    return this.db.inTransaction;
 
   }
 
   /* API */
 
+  backup ( path: string ): Promise<void> {
+
+    return this.db.backup ( path ).then ( noop );
+
+  }
+
   close (): void {
 
-    this.db.close ( true );
+    if ( !this.sqlite3 ) return;
+
+    this.exitDisposer ();
+
+    this.db.close ();
+
+    this.sqlite3 = undefined;
 
     if ( this.temporary ) {
 
@@ -86,76 +105,122 @@ class Database {
 
   }
 
-  deserialize ( data: Uint8Array, mode: 'read' | 'write' = 'write' ): this {
-
-    this.db.deserialize ( data, { mode } );
-
-    return this;
-
-  }
-
   execute ( sql: string ): void {
 
-    this.db.execute ( sql );
+    this.db.exec ( sql );
 
   }
 
-  function <A extends SqlFunctionArgument[] = SqlFunctionArgument[], R extends SqlFunctionResult = SqlFunctionResult> ( name: string, fn: ( ...args: A ) => R, options: FunctionOptions = {} ): Disposer {
+  function ( name: string, fn: ( ...args: unknown[] ) => unknown, options: FunctionOptions = {} ): Disposer {
 
-    this.db.createFunction ( fn, { ...options, name } );
+    const config: sqlite3.RegistrationOptions = {
+      deterministic: !!options.deterministic,
+      directOnly: !!options.direct,
+      varargs: !!options.variadic
+    };
 
-    return () => this.db.deleteFunction ( name );
+    this.db.function ( name, config, fn );
 
-  }
+    return (): void => {
 
-  meta (): Meta {
+      this.db.function ( name, config, () => {
 
-    return {
-      autoCommit: this.db.autoCommit,
-      changes: this.db.changes,
-      lastInsertRowId: this.db.lastInsertRowId,
-      totalChanges: this.db.totalChanges
+        throw new Error ( `no such function: ${name}` );
+
+      });
+
     };
 
   }
 
-  query<T extends RowObject = RowObject> ( sql: string, params?: QueryParameterSet ): T[] {
+  open (): sqlite3.Database {
 
-    const statement = ( this.statements[sql] ||= this.db.prepareQuery<Row, T>( sql ) );
+    if ( this.sqlite3 ) return this.sqlite3;
 
-    return statement.allEntries ( params );
+    if ( !this.memory ) {
+      ensureFileSync ( this.path );
+    }
+
+    const db = this.sqlite3 = new sqlite3 ( this.path, {
+      nativeBinding: this.options.bin,
+      readonly: this.readonly,
+      timeout: this.options.timeout ?? 600_000
+    });
+
+    if ( this.options.page || this.options.size ) {
+      const page = this.options.page || PAGE_SIZE;
+      const size = this.options.size || ( page * PAGES_COUNT );
+      const maxPageCount = Math.ceil ( size / page );
+      db.exec ( `PRAGMA page_size=${page}` );
+      db.exec ( `PRAGMA max_page_count=${maxPageCount}` );
+    }
+
+    if ( this.options.wal ) {
+      db.exec ( 'PRAGMA synchronous=NORMAL' );
+      db.exec ( 'PRAGMA journal_mode=WAL' );
+    }
+
+    this.exitDisposer = whenExit ( () => this.close () );
+
+    return db;
+
+  }
+
+  prepare<R extends Dict<Out> = Dict<Out>, P extends Array<In> | Dict<In> = Array<In> | Dict<In>> ( sql: string ): (( params?: P ) => R[]) {
+
+    return this.statements[sql] ||= (() => {
+
+      const statement = this.db.prepare<P[]>( sql );
+
+      return ( params?: P ) => {
+
+        if ( statement.reader ) {
+
+          return params ? statement.all ( params ) : statement.all ();
+
+        } else {
+
+          params ? statement.run ( params ) : statement.run ();
+
+          return [];
+
+        }
+
+      };
+
+    })();
+
+  }
+
+  query<R extends Dict<Out> = Dict<Out>, P extends Array<In> | Dict<In> = Array<In> | Dict<In>> ( sql: string, params?: P ): R[] {
+
+    return this.prepare<R, P>( sql )( params );
 
   }
 
   serialize (): Uint8Array {
 
-    return this.db.serialize ();
+    return buffer2uint8 ( this.db.serialize () );
 
   }
 
-  size (): number {
+  sql<R extends Dict<Out> = Dict<Out>, P extends Array<In> = Array<In>> ( statics: TemplateStringsArray, ...params: P ): R[] {
 
-    const result = this.query<{ size: number }> ( 'SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()' );
+    const sql = statics.join ( '?' );
 
-    return result[0].size;
-
-  }
-
-  sql<T extends RowObject = RowObject> ( statics: TemplateStringsArray, ...dynamics: QueryParameter[] ): T[] {
-
-    return this.query<T> ( statics.join ( '?' ), dynamics );
+    return this.prepare<R, P>( sql )( params );
 
   }
 
-  transaction ( fn: () => void ): void {
+  transaction ( fn: Callback ): void {
 
-    this.db.transaction ( fn );
+    this.db.transaction ( fn )();
 
   }
 
   vacuum (): void {
 
-    this.db.execute ( 'VACUUM' );
+    this.execute ( 'VACUUM' );
 
   }
 
