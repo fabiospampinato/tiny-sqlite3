@@ -163,6 +163,8 @@ class Database {
       db.exec ( 'PRAGMA journal_mode=WAL' );
     }
 
+    db.exec ( 'PRAGMA temp_store=MEMORY' );
+
     this.exitDisposer = whenExit ( () => this.close () );
 
     return db;
