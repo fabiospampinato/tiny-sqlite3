@@ -17,7 +17,7 @@ import Database from 'tiny-sqlite3';
 
 const mem = new Database ( ':memory:' );
 
-// Create a permament on-disk database
+// Create a permanent on-disk database
 
 const db = new Database ( 'foo.db' );
 
