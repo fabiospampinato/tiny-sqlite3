@@ -209,9 +209,9 @@ class Database {
 
   }
 
-  sql<R extends Dict<Out> = Dict<Out>, P extends Array<In> = Array<In>> ( statics: TemplateStringsArray, ...params: P ): R[] {
+  sql<R extends Dict<Out> = Dict<Out>, P extends Array<In> = Array<In>> ( statistics: TemplateStringsArray, ...params: P ): R[] {
 
-    const sql = statics.join ( '?' );
+    const sql = statistics.join ( '?' );
 
     return this.prepare<R, P>( sql )( params );
 
